@@ -1,0 +1,991 @@
+<!DOCTYPE html><html class="h-full" lang="pt-BR"><svg class="inline-defs-container" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"></svg><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>CAPIM DOURADO | Central Operacional</title>
+<!-- Tailwind CSS v3 with plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<!-- Bootstrap Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<!-- Tailwind Configuration -->
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              dark: '#080d1a',
+              card: '#111827',
+              border: '#1f293d',
+              gold: '#eab308',
+              goldHover: '#ca8a04',
+              goldLight: '#fef08a'
+            }
+          }
+        }
+      }
+    };
+  </script>
+<!-- BEGIN: Custom Styles -->
+<style data-purpose="custom-scrollbars">
+    /* Compact custom scrollbar for dense interfaces */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(11, 17, 32, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #2a3447;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #4a5568;
+    }
+  </style>
+<style data-purpose="glow-and-animations">
+    @keyframes pulse-ring {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+      }
+      70% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+      }
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+      }
+    }
+    .pulse-danger {
+      animation: pulse-ring 2s infinite cubic-bezier(0.45, 0, 0.55, 1);
+    }
+    .glow-gold {
+      box-shadow: 0 0 18px -2px rgba(234, 179, 8, 0.35);
+    }
+    .glow-red-card {
+      box-shadow: inset 0 0 35px -10px rgba(220, 38, 38, 0.25), 0 0 20px -5px rgba(220, 38, 38, 0.2);
+    }
+    .map-tag-backdrop {
+      backdrop-filter: blur(4px);
+      background-color: rgba(15, 23, 42, 0.88);
+    }
+    /* Estilo arquitetônico com alto contraste e nitidez cristalina */
+    .blueprint-frame {
+      background: #090e1a;
+      box-shadow: inset 0 0 40px rgba(0,0,0,0.85);
+    }
+    .plan-img {
+      filter: contrast(1.06) brightness(0.98);
+      image-rendering: -webkit-optimize-contrast;
+    }
+    /* Blueprint Escuro (invert + hue-rotate para aspecto CAD/Cyber) */
+    .blueprint-dark {
+      filter: invert(0.9) hue-rotate(185deg) contrast(1.3) brightness(0.92) !important;
+    }
+    /* Pan & Zoom smooth navigation */
+    .map-viewport-interactive {
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .map-viewport-interactive.is-panning {
+      cursor: grabbing !important;
+    }
+    .pan-zoom-content {
+      transform-origin: 0 0;
+      will-change: transform;
+      transition: transform 0.05s ease-out;
+    }
+    .pan-zoom-content.smooth-reset {
+      transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+  </style>
+<!-- END: Custom Styles -->
+</head>
+<body class="bg-[#0b1120] text-slate-100 font-sans h-screen overflow-hidden flex flex-col antialiased selection:bg-amber-500 selection:text-black"><svg class="inline-defs-container" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"></svg>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>CAPIM DOURADO | Central Operacional</title>
+<!-- Tailwind CSS v3 with plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<!-- Bootstrap Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<!-- Tailwind Configuration -->
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              dark: '#080d1a',
+              card: '#111827',
+              border: '#1f293d',
+              gold: '#eab308',
+              goldHover: '#ca8a04',
+              goldLight: '#fef08a'
+            }
+          }
+        }
+      }
+    };
+  </script>
+<!-- BEGIN: Custom Styles -->
+<style data-purpose="custom-scrollbars">
+    /* Compact custom scrollbar for dense interfaces */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(11, 17, 32, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #2a3447;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #4a5568;
+    }
+  </style>
+<style data-purpose="glow-and-animations">
+    @keyframes pulse-ring {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+      }
+      70% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+      }
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+      }
+    }
+    .pulse-danger {
+      animation: pulse-ring 2s infinite cubic-bezier(0.45, 0, 0.55, 1);
+    }
+    .glow-gold {
+      box-shadow: 0 0 18px -2px rgba(234, 179, 8, 0.35);
+    }
+    .glow-red-card {
+      box-shadow: inset 0 0 35px -10px rgba(220, 38, 38, 0.25), 0 0 20px -5px rgba(220, 38, 38, 0.2);
+    }
+    .map-tag-backdrop {
+      backdrop-filter: blur(4px);
+      background-color: rgba(15, 23, 42, 0.88);
+    }
+    /* Estilo arquitetônico com alto contraste e nitidez cristalina */
+    .blueprint-frame {
+      background: #090e1a;
+      box-shadow: inset 0 0 40px rgba(0,0,0,0.85);
+    }
+    .plan-img {
+      filter: contrast(1.06) brightness(0.98);
+      image-rendering: -webkit-optimize-contrast;
+    }
+    /* Blueprint Escuro (invert + hue-rotate para aspecto CAD/Cyber) */
+    .blueprint-dark {
+      filter: invert(0.9) hue-rotate(185deg) contrast(1.3) brightness(0.92) !important;
+    }
+    /* Pan & Zoom smooth navigation */
+    .map-viewport-interactive {
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .map-viewport-interactive.is-panning {
+      cursor: grabbing !important;
+    }
+    .pan-zoom-content {
+      transform-origin: 0 0;
+      will-change: transform;
+      transition: transform 0.05s ease-out;
+    }
+    .pan-zoom-content.smooth-reset {
+      transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+  </style>
+<!-- END: Custom Styles -->
+
+
+<!-- BEGIN: MainHeader -->
+<header class="h-14 border-b border-[#1c273c] bg-[#0c1322] px-4 flex items-center justify-between flex-shrink-0 z-30" data-purpose="global-header">
+<!-- Left Section: Mall Logo & Brand Title -->
+<div class="flex items-center space-x-3.5">
+<div class="flex items-center space-x-2">
+<!-- Golden stylized sun logo -->
+<div class="text-amber-400 text-2xl flex items-center justify-center leading-none">
+<i class="bi bi-brightness-high-fill"></i>
+</div>
+<div class="flex flex-col">
+<span class="text-[11px] font-bold tracking-wider text-amber-400 uppercase leading-tight">Capim Dourado</span>
+<span class="text-[9px] tracking-widest text-slate-400 uppercase leading-none font-semibold">Shopping Palmas - TO</span>
+</div>
+</div>
+<!-- Subtle vertical divider -->
+<div class="h-6 w-[1px] bg-slate-700/60 mx-1"></div>
+<!-- Operation Title and subtitle -->
+<div class="hidden md:flex flex-col">
+<h1 class="text-xs font-bold tracking-wide text-slate-100">CAPIM DOURADO <span class="text-slate-500 font-normal">|</span> CENTRAL OPERACIONAL</h1>
+<p class="text-[10px] text-slate-400 leading-none">Gestão inteligente de infraestrutura e serviços.</p>
+</div>
+</div>
+<!-- Right Section: Search & Admin Controls -->
+<div class="flex items-center space-x-3 text-xs">
+<!-- Search Box -->
+<div class="relative hidden lg:block w-72">
+<i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+<input class="w-full bg-[#151f33] border border-[#26354d] text-slate-200 placeholder-slate-500 rounded-full pl-8 pr-3 py-1 text-xs focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all" placeholder="Buscar área, loja ocorrência..." type="text">
+</div>
+<!-- Alert Bell with Badge -->
+<button class="relative p-2 text-slate-300 hover:text-white transition-colors" title="Alertas">
+<i class="bi bi-bell text-sm"></i>
+<span class="absolute top-1 right-1 w-4 h-4 bg-red-600 text-white rounded-full text-[9px] font-bold flex items-center justify-center">3</span>
+</button>
+<!-- User Profile Dropdown -->
+<div class="flex items-center space-x-2 pl-2 border-l border-slate-700/60 cursor-pointer text-slate-200 hover:text-white">
+<div class="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs text-slate-300">
+<i class="bi bi-person-fill"></i>
+</div>
+<span class="text-xs font-medium hidden sm:inline">Administrador</span>
+<i class="bi bi-chevron-down text-[10px] text-slate-400"></i>
+</div>
+<!-- Live Clock & Date -->
+<div class="hidden xl:flex items-center space-x-2 text-right border-l border-slate-700/60 pl-3">
+<i class="bi bi-calendar3 text-slate-400 text-xs"></i>
+<div class="text-[11px] leading-tight text-slate-300 font-mono">
+<div>12/11/2026</div>
+<div class="text-slate-400 text-[10px]">10:24</div>
+</div>
+</div>
+<!-- Demonstration Mode Button -->
+<button class="flex items-center space-x-1.5 px-2.5 py-1 rounded border border-amber-500/70 bg-amber-500/10 text-amber-300 text-[11px] font-medium hover:bg-amber-500/20 transition-all">
+<i class="bi bi-display text-xs"></i>
+<span>Modo demonstração</span>
+</button>
+</div>
+</header>
+<!-- END: MainHeader -->
+<!-- BEGIN: MainWorkspace -->
+<div class="flex flex-1 overflow-hidden" data-purpose="workspace-layout">
+<!-- BEGIN: LeftSidebar -->
+<aside class="w-60 bg-[#0e1627] border-r border-[#1c273c] flex flex-col justify-between flex-shrink-0 z-20" data-purpose="left-navigation">
+<!-- Menu Item Navigation List -->
+<nav class="py-2.5 px-2 overflow-y-auto space-y-0.5 text-xs font-medium text-slate-300">
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded hover:bg-slate-800/60 hover:text-white transition-colors" href="#">
+<i class="bi bi-house-door text-sm text-slate-400"></i>
+<span>Visão Geral</span>
+</a>
+<!-- Active Item: Mapa Operacional -->
+<a class="flex items-center justify-between px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 to-amber-600/10 text-amber-300 border border-amber-500/50 glow-gold transition-all" href="#">
+<div class="flex items-center space-x-2.5">
+<i class="bi bi-map-fill text-sm text-amber-400"></i>
+<span class="font-semibold">Mapa Operacional</span>
+</div>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded hover:bg-slate-800/60 hover:text-white transition-colors" href="#">
+<i class="bi bi-shield-exclamation text-sm text-slate-400"></i>
+<span>Central de Emergências</span>
+</a>
+<a class="flex items-center justify-between px-3 py-1.5 rounded hover:bg-slate-800/60 hover:text-white transition-colors" href="#">
+<div class="flex items-center space-x-2.5">
+<i class="bi bi-exclamation-triangle text-sm text-slate-400"></i>
+<span>Ocorrências</span>
+</div>
+<span class="bg-red-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">3</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded hover:bg-slate-800/60 hover:text-white transition-colors" href="#">
+<i class="bi bi-calendar-check text-sm text-slate-400"></i>
+<span>Manutenção Preventiva</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded hover:bg-slate-800/60 hover:text-white transition-colors" href="#">
+<i class="bi bi-wrench-adjustable text-sm text-slate-400"></i>
+<span>Manutenção Corretiva</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded hover:bg-slate-800/60 hover:text-white transition-colors" href="#">
+<i class="bi bi-stars text-sm text-slate-400"></i>
+<span>Limpeza</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded hover:bg-slate-800/60 hover:text-white transition-colors" href="#">
+<i class="bi bi-shield-shaded text-sm text-slate-400"></i>
+<span>Segurança</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded hover:bg-slate-800/60 hover:text-white transition-colors" href="#">
+<i class="bi bi-fan text-sm text-slate-400"></i>
+<span>Climatização</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded hover:bg-slate-800/60 hover:text-white transition-colors" href="#">
+<i class="bi bi-lightning-charge text-sm text-slate-400"></i>
+<span>Energia</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded hover:bg-slate-800/60 hover:text-white transition-colors" href="#">
+<i class="bi bi-cpu text-sm text-slate-400"></i>
+<span>Equipamentos</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded hover:bg-slate-800/60 hover:text-white transition-colors" href="#">
+<i class="bi bi-p-square text-sm text-slate-400"></i>
+<span>Estacionamento</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded hover:bg-slate-800/60 hover:text-white transition-colors" href="#">
+<i class="bi bi-people text-sm text-slate-400"></i>
+<span>Equipes Operacionais</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded hover:bg-slate-800/60 hover:text-white transition-colors" href="#">
+<i class="bi bi-bar-chart-line text-sm text-slate-400"></i>
+<span>Relatórios</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded hover:bg-slate-800/60 hover:text-white transition-colors" href="#">
+<i class="bi bi-robot text-sm text-slate-400"></i>
+<span>Simulação Inteligente</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded hover:bg-slate-800/60 hover:text-white transition-colors" href="#">
+<i class="bi bi-gear text-sm text-slate-400"></i>
+<span>Configurações</span>
+</a>
+</nav>
+<!-- Sidebar Footer: Mall Exterior Snapshot Card -->
+<div class="p-2 border-t border-[#1c273c]">
+<div class="relative rounded-lg overflow-hidden border border-slate-700/60 group">
+<!-- External night photo crop -->
+<img alt="Capim Dourado Fachada Noturna" class="w-full h-24 object-cover object-bottom filter brightness-95 group-hover:scale-105 transition-transform duration-300" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCaln1Qu69xvAYy216eTu0DFvbNRIAfFKWhf0CFmfsWFPU-z0mApvBaLr9qIJIqUDFBP_rXZnHGr7-s128FKu0qP6CkVNUsBakQw_UsZ8yZDyrxMWL_gnpvjtsE-1UKh-xFBnVj99qUucaCnHVUB-dKTTdh-GORCGGyxS6QEpuNXlKs70piLN825qChYH8fJDYuZzQUc4UvqBXd100uC1Db7x5gAILXyArXfJlU0Dxp86MYry3k1O_k">
+<div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent flex items-end p-2">
+<div>
+<div class="text-[10px] font-bold text-amber-300 leading-tight">CAPIM DOURADO</div>
+<div class="text-[8px] text-slate-300 font-medium">SHOPPING • PALMAS</div>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- END: LeftSidebar -->
+<!-- BEGIN: CentralContent -->
+<main class="flex-1 flex flex-col min-w-0 bg-[#0b1120] overflow-hidden" data-purpose="central-dashboard">
+<!-- Top Floor Selection Tab Buttons & Floor Meta Info -->
+<div class="px-4 pt-2.5 pb-1 flex items-center justify-between flex-shrink-0">
+<div class="flex items-center space-x-2">
+<button class="px-5 py-1 text-xs rounded-md hover:brightness-105 transition-all flex items-center space-x-1.5 bg-[#162033] text-slate-400 border border-[#23324d] font-medium" id="btn-terreo" onclick="switchFloor('terreo')">
+<i class="bi bi-layers-fill text-[11px]"></i>
+<span>Térreo (1º Pavimento)</span>
+</button>
+<button class="px-4 py-1 text-xs rounded-md hover:text-slate-200 transition-colors flex items-center space-x-1.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-bold" id="btn-praca" onclick="switchFloor('praca')">
+<i class="bi bi-cup-hot-fill text-[11px]"></i>
+<span>Praça de Alimentação (2º Pavimento)</span>
+</button>
+</div>
+<!-- Quick metadata on the floor view -->
+<div class="hidden sm:flex items-center space-x-3 text-[11px] text-slate-400"><div class="flex items-center bg-[#121a2c] rounded-lg border border-[#212c42] p-0.5 shadow-sm mr-1"><button class="flex items-center space-x-1.5 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-cyan-950/70 border border-cyan-500/50 text-cyan-300 shadow-sm transition-all" id="btn-mode-blueprint" onclick="setMapMode('blueprint')" title="Modo Blueprint Escuro (Alto Contraste)"><i class="bi bi-cpu text-cyan-400 text-xs"></i><span>Blueprint Escuro</span></button><button class="flex items-center space-x-1.5 px-2 py-0.5 rounded text-[11px] font-normal text-slate-400 hover:text-slate-200 transition-colors" id="btn-mode-light" onclick="setMapMode('light')" title="Planta Original Clara"><i class="bi bi-file-earmark-image text-xs"></i><span>Original Claro</span></button></div>
+<div class="flex items-center space-x-1.5 bg-[#121a2c] px-2.5 py-0.5 rounded border border-[#212c42]">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+<span class="text-slate-300 font-medium" id="floor-badge-text">Planta Mix Ativa: Praça de Alimentação (2º Pav.)</span>
+</div>
+<div class="flex items-center space-x-1 text-slate-500">
+<i class="bi bi-check2-all text-emerald-400"></i>
+<span>Alta Definição</span>
+</div>
+</div>
+</div>
+<!-- Main Map Visualizer Box -->
+<div class="flex-1 mx-4 my-1.5 relative rounded-xl overflow-hidden border border-[#202d44] blueprint-frame shadow-2xl flex items-center justify-center p-1 map-viewport-interactive" data-purpose="map-isometric-container" id="map-viewport">
+<!-- Pannable & Zoomable Container that encloses all layers and synchronized pins -->
+<div class="pan-zoom-content relative w-full h-full flex items-center justify-center" id="pan-zoom-container" style="transform: translate(-0.527132px, -32.4702px) scale(1.001);">
+<!-- ================= LAYER 1: 1º PAVIMENTO - TÉRREO ================= -->
+<div class="relative max-w-full max-h-full items-center justify-center transition-opacity duration-300 hidden opacity-0" id="layer-terreo">
+<!-- Blueprint Image for Térreo -->
+<img alt="Planta Mix 1º Pavimento Térreo" class="max-w-full max-h-full object-contain rounded-lg shadow-lg plan-img select-none blueprint-dark pointer-events-none" id="img-terreo" src="https://raw.githubusercontent.com/Lelio9x/projeto-hackaton/main/terreo.jpeg" data-floor="terreo">
+<!-- Interactive Pins Layer for Térreo -->
+<div class="absolute inset-0 pointer-events-none">
+<!-- Critical Incident Pin: Escada Rolante Central (Near Riachuelo / Central Concourse) -->
+
+<!-- Attention Pin (Corridor West - Near Renner) -->
+<div class="absolute top-[53%] left-[28%] -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer flex items-center justify-center group" title="Alerta: Sensor de Fluxo Ala Oeste">
+<div class="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center">
+<div class="w-5 h-5 bg-amber-500 text-slate-950 rounded-full flex items-center justify-center shadow-md font-bold text-[10px] border border-white/60 group-hover:scale-110 transition-transform">
+<i class="bi bi-exclamation text-xs font-black"></i>
+</div>
+</div>
+</div>
+<!-- Maintenance/Work Pin (North Corridor - Docas/C&A) -->
+<div class="absolute top-[28%] left-[45%] -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer flex items-center justify-center group" title="Manutenção Preventiva - C&amp;A">
+<div class="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
+<div class="w-5 h-5 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-md text-[10px] border border-white/60 group-hover:scale-110 transition-transform">
+<i class="bi bi-wrench text-[9px]"></i>
+</div>
+</div>
+</div>
+<!-- HVAC Pin (Ala Leste / Cinemark) -->
+<div class="absolute top-[52%] left-[64%] -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer flex items-center justify-center group" title="Climatização Central Ala Leste">
+<div class="w-6 h-6 rounded-full bg-cyan-500/20 flex items-center justify-center">
+<div class="w-5 h-5 bg-cyan-500 text-slate-950 rounded-full flex items-center justify-center shadow-md text-[10px] border border-white/60 group-hover:scale-110 transition-transform">
+<i class="bi bi-thermometer-half text-xs"></i>
+</div>
+</div>
+</div>
+<!-- Callout Tags for Floor Reference -->
+<div class="absolute bottom-[30%] left-[47%] map-tag-backdrop px-2.5 py-0.5 rounded border border-slate-700 text-slate-200 text-[10px] font-medium flex items-center space-x-1 shadow">
+<i class="bi bi-arrow-up text-amber-400"></i>
+<span>Acesso Principal</span>
+</div>
+<div class="absolute top-[48%] left-[19%] map-tag-backdrop px-2 py-0.5 rounded border border-slate-700 text-slate-300 text-[9px] flex items-center space-x-1">
+<i class="bi bi-box-arrow-in-right text-slate-400"></i>
+<span>Entrada JK / Renner</span>
+</div>
+<div class="absolute top-[42%] right-[22%] map-tag-backdrop px-2 py-0.5 rounded border border-slate-700 text-slate-300 text-[9px] flex items-center space-x-1">
+<i class="bi bi-film text-slate-400"></i>
+<span>Cinemark</span>
+</div>
+</div>
+</div>
+<!-- ================= LAYER 2: 2º PAVIMENTO - PRAÇA DE ALIMENTAÇÃO ================= -->
+<div class="relative max-w-full max-h-full items-center justify-center transition-opacity duration-300 flex opacity-100" id="layer-praca">
+<!-- Blueprint Image for Praça de Alimentação -->
+<img alt="Planta Mix 2º Pavimento Praça de Alimentação" class="max-w-full max-h-full object-contain rounded-lg shadow-lg plan-img select-none blueprint-dark pointer-events-none" id="img-praca" src="https://raw.githubusercontent.com/Lelio9x/projeto-hackaton/main/praca.jpeg" data-floor="praca">
+<!-- Interactive Pins Layer for Praça de Alimentação -->
+<div class="absolute inset-0 pointer-events-none">
+<!-- Incident Pin: Exaustão & Coifas (Near McDonald's / Spoleto) -->
+<div class="absolute top-[28%] left-[43%] -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer flex flex-col items-center group">
+<div class="relative flex items-center justify-center">
+<span class="absolute w-7 h-7 rounded-full bg-amber-500/40 animate-ping"></span>
+<div class="w-7 h-7 bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-950 rounded-full flex items-center justify-center shadow-lg font-bold text-xs border border-white">
+<i class="bi bi-fire text-xs"></i>
+</div>
+</div>
+<div class="mt-1 px-2 py-0.5 rounded-full bg-slate-900/90 border border-amber-500 text-amber-300 text-[9px] font-bold flex items-center space-x-1 shadow">
+<span>Exaustor #03 Em Vistoria</span>
+</div>
+</div>
+<!-- Active Pin: Climatização Central Praça (Centro do Salão) -->
+<div class="absolute top-[46%] left-[51%] -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer flex flex-col items-center group">
+<div class="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center">
+<div class="w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-md text-xs border border-white/60 group-hover:scale-110 transition-transform">
+<i class="bi bi-fan"></i>
+</div>
+</div>
+<div class="mt-1 px-2 py-0.5 rounded-full bg-slate-900/90 border border-emerald-500/80 text-emerald-300 text-[9px] font-medium flex items-center space-x-1">
+<span>Temp: 22.4°C • OK</span>
+</div>
+</div>
+<!-- Operational Pin: Manutenção de Gás (Near Giraffas / Subway) -->
+<div class="absolute top-[63%] left-[48%] -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer flex items-center justify-center group" title="Rede GLP Alimentação - Pressão Nominal">
+<div class="w-6 h-6 rounded-full bg-cyan-500/20 flex items-center justify-center">
+<div class="w-5 h-5 bg-cyan-500 text-slate-950 rounded-full flex items-center justify-center shadow-md text-[10px] border border-white/60 group-hover:scale-110 transition-transform">
+<i class="bi bi-speedometer2 text-xs"></i>
+</div>
+</div>
+</div>
+<!-- Operational Pin: Acesso Escadas Rolantes / Circulação Social -->
+
+<!-- Labels for Praça -->
+<div class="absolute top-[21%] left-[30%] map-tag-backdrop px-2 py-0.5 rounded border border-slate-700 text-slate-300 text-[9px] flex items-center space-x-1">
+<i class="bi bi-stars text-amber-400"></i>
+<span>Mundo Imersivo</span>
+</div>
+<div class="absolute bottom-[23%] left-[32%] map-tag-backdrop px-2 py-0.5 rounded border border-slate-700 text-slate-300 text-[9px] flex items-center space-x-1">
+<i class="bi bi-geo-alt-fill text-slate-400"></i>
+<span>Evento Imerso Mar</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Map Tool Overlay Control Badge & HUD -->
+<div class="absolute top-2 right-2 flex items-center space-x-1.5 bg-slate-900/90 border border-slate-700/80 rounded-lg p-1 text-slate-300 text-xs shadow-lg backdrop-blur z-10 select-none">
+<!-- Zoom Level HUD Indicator -->
+<div class="px-2 py-0.5 font-mono text-[11px] font-bold text-amber-400 border-r border-slate-700/80 flex items-center space-x-1">
+<i class="bi bi-search text-[10px] text-slate-400"></i>
+<span id="zoom-indicator-badge">100%</span>
+</div>
+<button class="px-2 py-1 hover:text-white hover:bg-slate-800 rounded transition-colors active:scale-95" id="btn-zoom-in" onclick="zoomIn()" title="Aproximar Zoom (Scroll up ou Duplo Clique)">
+<i class="bi bi-zoom-in"></i>
+</button>
+<button class="px-2 py-1 hover:text-white hover:bg-slate-800 rounded transition-colors active:scale-95" id="btn-zoom-out" onclick="zoomOut()" title="Afastar Zoom (Scroll down)">
+<i class="bi bi-zoom-out"></i>
+</button>
+<button class="px-2 py-1 hover:text-white hover:bg-slate-800 rounded transition-colors active:scale-95" id="btn-zoom-reset" onclick="resetZoomAndPan()" title="Ajustar à tela / Resetar (100%)">
+<i class="bi bi-arrows-fullscreen"></i>
+</button>
+</div>
+<!-- Pan/Navigation Prompt Hint Overlay -->
+<div class="absolute bottom-2 right-2 pointer-events-none hidden sm:flex items-center space-x-1.5 px-2.5 py-1 bg-slate-950/75 border border-slate-800 rounded-full text-[10px] text-slate-400 backdrop-blur z-10">
+<i class="bi bi-mouse text-amber-400 text-xs"></i>
+<span>Scroll para Zoom • Arraste para Mover</span>
+</div>
+</div>
+<!-- Bottom Operational KPI & Analytics Cards -->
+<div class="px-4 pb-2 pt-0.5 grid grid-cols-1 md:grid-cols-4 gap-2.5 flex-shrink-0" data-purpose="kpi-grid">
+<!-- Card 1: Status Legend -->
+<div class="bg-[#121a2c] border border-[#212c42] rounded-lg p-2.5 flex flex-col justify-between">
+<span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Legenda de status (áreas e ativos)</span>
+<div class="grid grid-cols-2 gap-y-1 gap-x-2 text-[10px]">
+<div class="flex items-center space-x-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm"></span>
+<span class="text-slate-300">Operacional</span>
+</div>
+<div class="flex items-center space-x-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm"></span>
+<span class="text-slate-300">Crítico</span>
+</div>
+<div class="flex items-center space-x-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-sm"></span>
+<span class="text-slate-300">Atenção</span>
+</div>
+<div class="flex items-center space-x-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-purple-500 shadow-sm"></span>
+<span class="text-slate-300">Manut. prog.</span>
+</div>
+<div class="flex items-center space-x-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-orange-400 shadow-sm"></span>
+<span class="text-slate-300">Pendente</span>
+</div>
+<div class="flex items-center space-x-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-sm"></span>
+<span class="text-slate-300">Monit. prev.</span>
+</div>
+</div>
+</div>
+<!-- Card 2: Operational Indicators (Pavimento Ativo) -->
+<div class="bg-[#121a2c] border border-[#212c42] rounded-lg p-2.5 flex flex-col justify-between">
+<span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1" id="indicators-card-title">Indicadores operacionais (praça de alimentação)</span>
+<div class="grid grid-cols-4 gap-1.5 text-center">
+<!-- 98% Operacional -->
+<div class="bg-[#172237] p-1 rounded border border-emerald-900/50 flex flex-col justify-center">
+<i class="bi bi-check-circle text-emerald-400 text-xs mb-0.5"></i>
+<div class="text-xs font-bold text-emerald-400 leading-tight" id="stat-operac">98%</div>
+<div class="text-[8px] text-slate-400 leading-tight">Áreas operac.</div>
+</div>
+<!-- 3 Ocorrências -->
+<div class="bg-[#172237] p-1 rounded border border-red-900/50 flex flex-col justify-center">
+<i class="bi bi-exclamation-triangle text-red-400 text-xs mb-0.5"></i>
+<div class="text-xs font-bold text-red-400 leading-tight" id="stat-ocorr">3</div>
+<div class="text-[8px] text-slate-400 leading-tight">Ocorrências</div>
+</div>
+<!-- 2 Em atendimento -->
+<div class="bg-[#172237] p-1 rounded border border-amber-900/50 flex flex-col justify-center">
+<i class="bi bi-tools text-amber-400 text-xs mb-0.5"></i>
+<div class="text-xs font-bold text-amber-400 leading-tight" id="stat-atend">2</div>
+<div class="text-[8px] text-slate-400 leading-tight">Em atend.</div>
+</div>
+<!-- 17 Resolvidos -->
+<div class="bg-[#172237] p-1 rounded border border-blue-900/50 flex flex-col justify-center">
+<i class="bi bi-bag-check text-blue-400 text-xs mb-0.5"></i>
+<div class="text-xs font-bold text-blue-400 leading-tight" id="stat-resolv">17</div>
+<div class="text-[8px] text-slate-400 leading-tight">Resolv. 24h</div>
+</div>
+</div>
+</div>
+<!-- Card 3: Sector Distribution Progress Bars -->
+<div class="bg-[#121a2c] border border-[#212c42] rounded-lg p-2.5 flex flex-col justify-between">
+<span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Ocorrências por setor (últimas 24h)</span>
+<div class="space-y-1 text-[9px]">
+<!-- Manutenção -->
+<div class="flex items-center justify-between">
+<span class="w-16 text-slate-300">Manutenção</span>
+<div class="flex-1 mx-2 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+<div class="bg-red-500 h-1.5 rounded-full" style="width: 40%"></div>
+</div>
+<span class="text-slate-400 font-mono">40%</span>
+</div>
+<!-- Limpeza -->
+<div class="flex items-center justify-between">
+<span class="w-16 text-slate-300">Limpeza</span>
+<div class="flex-1 mx-2 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+<div class="bg-amber-500 h-1.5 rounded-full" style="width: 20%"></div>
+</div>
+<span class="text-slate-400 font-mono">20%</span>
+</div>
+<!-- Climatização -->
+<div class="flex items-center justify-between">
+<span class="w-16 text-slate-300">Climatiz.</span>
+<div class="flex-1 mx-2 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+<div class="bg-blue-400 h-1.5 rounded-full" style="width: 15%"></div>
+</div>
+<span class="text-slate-400 font-mono">15%</span>
+</div>
+<!-- Segurança -->
+<div class="flex items-center justify-between">
+<span class="w-16 text-slate-300">Segurança</span>
+<div class="flex-1 mx-2 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+<div class="bg-purple-500 h-1.5 rounded-full" style="width: 15%"></div>
+</div>
+<span class="text-slate-400 font-mono">15%</span>
+</div>
+<!-- Energia -->
+<div class="flex items-center justify-between">
+<span class="w-16 text-slate-300">Energia</span>
+<div class="flex-1 mx-2 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+<div class="bg-cyan-400 h-1.5 rounded-full" style="width: 10%"></div>
+</div>
+<span class="text-slate-400 font-mono">10%</span>
+</div>
+</div>
+</div>
+<!-- Card 4: Operational Footfall Flow Chart -->
+<div class="bg-[#121a2c] border border-[#212c42] rounded-lg p-2.5 flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Fluxo operacional (24h)</span>
+<div class="text-right">
+<div class="text-xs font-bold text-white leading-tight">6.842 <span class="text-[9px] font-normal text-slate-400">pessoas</span></div>
+<div class="text-[9px] text-emerald-400 font-bold leading-none">▲ +12% <span class="text-[8px] font-normal text-slate-400">vs dia ant.</span></div>
+</div>
+</div>
+<!-- Sparkline Chart Area -->
+<div class="h-10 mt-1 relative w-full flex items-end">
+<svg class="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 160 40">
+<defs>
+<linearGradient id="flowGrad" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#f59e0b" stop-opacity="0.45"></stop>
+<stop offset="100%" stop-color="#f59e0b" stop-opacity="0.0"></stop>
+</linearGradient>
+</defs>
+<path d="M0,35 Q20,25 35,32 T70,18 T105,24 T130,8 T160,14 L160,40 L0,40 Z" fill="url(#flowGrad)"></path>
+<path d="M0,35 Q20,25 35,32 T70,18 T105,24 T130,8 T160,14" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-width="2"></path>
+<!-- Highlight Peak Circle -->
+<circle cx="130" cy="8" fill="#fef08a" r="2.5" stroke="#d97706" stroke-width="1.5"></circle>
+</svg>
+</div>
+</div>
+</div>
+<!-- Discretionary Academic Notice Footer Bar -->
+<footer class="text-center text-[10px] py-1 text-slate-400 border-t border-[#1c273c] bg-[#090e1a] tracking-wide flex items-center justify-center space-x-1">
+<i class="bi bi-info-circle text-amber-400/90 text-xs"></i>
+<span>SIMULAÇÃO ACADÊMICA — NÃO REPRESENTA OCORRÊNCIAS REAIS DO SHOPPING.</span>
+</footer>
+</main>
+<!-- END: CentralContent -->
+<!-- BEGIN: RightDetailPanel -->
+<aside class="w-80 bg-[#0e1627] border-l border-[#1c273c] p-3 flex flex-col justify-between flex-shrink-0 z-20" data-purpose="incident-detail-panel">
+<!-- Incident Card Container with Red Theme -->
+<div class="bg-[#141b2c] border border-red-500/60 rounded-xl p-3.5 glow-red-card flex flex-col">
+<!-- Header of the Incident Card -->
+<div class="flex items-start justify-between pb-3 border-b border-red-500/30">
+<div class="flex items-center space-x-2">
+<div class="w-7 h-7 rounded-lg bg-red-600/20 text-red-500 flex items-center justify-center border border-red-500/40">
+<i class="bi bi-exclamation-octagon-fill text-base"></i>
+</div>
+<div>
+<h2 class="text-xs font-bold text-white leading-tight" id="incident-title">Escada rolante parada</h2>
+<span class="text-[9px] text-red-400 font-medium" id="incident-ticket">Chamado #OP-49021</span>
+</div>
+</div>
+<button class="text-slate-400 hover:text-white transition-colors" title="Abrir em nova aba">
+<i class="bi bi-box-arrow-up-right text-xs"></i>
+</button>
+</div>
+<!-- Incident Metadata List -->
+<div class="mt-3.5 space-y-3 text-xs">
+<!-- Localização -->
+<div class="flex items-start space-x-2.5">
+<i class="bi bi-layers text-slate-400 text-sm mt-0.5"></i>
+<div>
+<div class="text-[10px] text-slate-400 uppercase tracking-wider">Localização</div>
+<div class="text-slate-200 font-semibold text-xs" id="incident-location">2º Pav. – Desembarque Escada Rolante</div>
+</div>
+</div>
+<!-- Criticidade -->
+<div class="flex items-start space-x-2.5">
+<i class="bi bi-exclamation-diamond text-red-400 text-sm mt-0.5"></i>
+<div>
+<div class="text-[10px] text-slate-400 uppercase tracking-wider">Criticidade</div>
+<div class="text-red-400 font-bold text-xs flex items-center space-x-1">
+<span>Alta</span>
+<span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
+</div>
+</div>
+</div>
+<!-- Equipe Responsável -->
+<div class="flex items-start space-x-2.5">
+<i class="bi bi-tools text-slate-400 text-sm mt-0.5"></i>
+<div>
+<div class="text-[10px] text-slate-400 uppercase tracking-wider">Equipe responsável</div>
+<div class="text-slate-200 font-medium text-xs">Manutenção Predial</div>
+</div>
+</div>
+<!-- Status -->
+<div class="flex items-start space-x-2.5">
+<i class="bi bi-arrow-repeat text-amber-400 text-sm mt-0.5"></i>
+<div>
+<div class="text-[10px] text-slate-400 uppercase tracking-wider">Status</div>
+<div class="text-amber-400 font-semibold text-xs">Em atendimento</div>
+</div>
+</div>
+<!-- Aberto em -->
+<div class="flex items-start space-x-2.5">
+<i class="bi bi-clock text-slate-400 text-sm mt-0.5"></i>
+<div>
+<div class="text-[10px] text-slate-400 uppercase tracking-wider">Aberto em</div>
+<div class="text-slate-200 font-medium text-xs">12/11/2026 às 10:24</div>
+</div>
+</div>
+<!-- SLA e Prazo -->
+<div class="flex items-start space-x-2.5 bg-red-950/40 p-2 rounded-lg border border-red-900/50">
+<i class="bi bi-stopwatch text-red-400 text-base mt-0.5"></i>
+<div class="w-full">
+<div class="text-[9px] text-red-300 font-semibold uppercase tracking-wider">SLA Decorrido</div>
+<div class="flex items-baseline justify-between">
+<span class="text-sm font-bold font-mono text-red-400">00:42:16</span>
+<span class="text-[9px] text-slate-400">(prazo: 1h 30min)</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Buttons Footer -->
+<div class="mt-3 space-y-2">
+<!-- Team Triggered confirmation button -->
+<button class="w-full py-2 px-3 rounded-lg bg-emerald-600/20 border border-emerald-500/50 text-emerald-300 font-semibold text-xs flex items-center justify-center space-x-2 hover:bg-emerald-600/30 transition-all">
+<i class="bi bi-check2-circle text-base"></i>
+<span>Equipe acionada</span>
+</button>
+<!-- View Full Ticket Button -->
+<button class="w-full py-2 px-4 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center space-x-1.5 shadow-lg shadow-amber-500/20 transition-all">
+<span>Ver chamado</span>
+<i class="bi bi-chevron-right text-xs"></i>
+</button>
+</div>
+</aside>
+<!-- END: RightDetailPanel -->
+</div>
+<!-- END: MainWorkspace -->
+<!-- Dynamic Floor Switching & Interactive Pan-Zoom Logic -->
+<script>
+  // Map display filter modes
+  function setMapMode(mode) {
+    const imgTerreo = document.getElementById('img-terreo');
+    const imgPraca = document.getElementById('img-praca');
+    const btnBlueprint = document.getElementById('btn-mode-blueprint');
+    const btnLight = document.getElementById('btn-mode-light');
+
+    if (mode === 'blueprint') {
+      imgTerreo.classList.add('blueprint-dark');
+      imgPraca.classList.add('blueprint-dark');
+
+      btnBlueprint.className = "flex items-center space-x-1.5 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-cyan-950/70 border border-cyan-500/50 text-cyan-300 shadow-sm transition-all";
+      btnLight.className = "flex items-center space-x-1.5 px-2 py-0.5 rounded text-[11px] font-normal text-slate-400 hover:text-slate-200 transition-colors";
+    } else {
+      imgTerreo.classList.remove('blueprint-dark');
+      imgPraca.classList.remove('blueprint-dark');
+
+      btnLight.className = "flex items-center space-x-1.5 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-amber-500/20 border border-amber-500/60 text-amber-300 shadow-sm transition-all";
+      btnBlueprint.className = "flex items-center space-x-1.5 px-2 py-0.5 rounded text-[11px] font-normal text-slate-400 hover:text-slate-200 transition-colors";
+    }
+  }
+
+  function switchFloor(floor) {
+    const layerTerreo = document.getElementById('layer-terreo');
+    const layerPraca = document.getElementById('layer-praca');
+    const btnTerreo = document.getElementById('btn-terreo');
+    const btnPraca = document.getElementById('btn-praca');
+    const badgeText = document.getElementById('floor-badge-text');
+    const indicatorsTitle = document.getElementById('indicators-card-title');
+    const incidentLoc = document.getElementById('incident-location');
+
+    const activeClasses = ['bg-gradient-to-r', 'from-amber-400', 'to-amber-500', 'text-slate-950', 'shadow-md', 'shadow-amber-500/20', 'font-bold'];
+    const inactiveClasses = ['bg-[#162033]', 'text-slate-400', 'border', 'border-[#23324d]', 'font-medium'];
+
+    if (floor === 'terreo') {
+      // Toggle Layers
+      layerPraca.classList.add('hidden', 'opacity-0');
+      layerPraca.classList.remove('flex', 'opacity-100');
+
+      layerTerreo.classList.remove('hidden');
+      layerTerreo.classList.add('flex');
+      setTimeout(() => {
+        layerTerreo.classList.remove('opacity-0');
+        layerTerreo.classList.add('opacity-100');
+      }, 20);
+
+      // Button styles: Térreo active
+      btnTerreo.classList.remove(...inactiveClasses);
+      btnTerreo.classList.add(...activeClasses);
+
+      btnPraca.classList.remove(...activeClasses);
+      btnPraca.classList.add(...inactiveClasses);
+
+      // Meta info update
+      badgeText.textContent = 'Planta Mix Ativa: Térreo (38.800,50 m²)';
+      indicatorsTitle.textContent = 'Indicadores operacionais (térreo)';
+      incidentLoc.textContent = 'Térreo – circulação central';
+    } else if (floor === 'praca') {
+      // Toggle Layers
+      layerTerreo.classList.add('hidden', 'opacity-0');
+      layerTerreo.classList.remove('flex', 'opacity-100');
+
+      layerPraca.classList.remove('hidden');
+      layerPraca.classList.add('flex');
+      setTimeout(() => {
+        layerPraca.classList.remove('opacity-0');
+        layerPraca.classList.add('opacity-100');
+      }, 20);
+
+      // Button styles: Praça active
+      btnPraca.classList.remove(...inactiveClasses);
+      btnPraca.classList.add(...activeClasses);
+
+      btnTerreo.classList.remove(...activeClasses);
+      btnTerreo.classList.add(...inactiveClasses);
+
+      // Meta info update
+      badgeText.textContent = 'Planta Mix Ativa: Praça de Alimentação (2º Pav.)';
+      indicatorsTitle.textContent = 'Indicadores operacionais (praça de alimentação)';
+      incidentLoc.textContent = '2º Pav. – Desembarque Escada Rolante';
+    }
+  }
+
+  // ==========================================
+  // Interactive Pan and Zoom Controller
+  // ==========================================
+  const viewport = document.getElementById('map-viewport');
+  const container = document.getElementById('pan-zoom-container');
+  const zoomBadge = document.getElementById('zoom-indicator-badge');
+
+  let scale = 1.0;
+  let translateX = 0;
+  let translateY = 0;
+
+  const MIN_SCALE = 0.75;
+  const MAX_SCALE = 5.0;
+  const ZOOM_STEP = 0.25;
+
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let initialTranslateX = 0;
+  let initialTranslateY = 0;
+
+  function updateTransform(withSmooth = false) {
+    if (withSmooth) {
+      container.classList.add('smooth-reset');
+      setTimeout(() => container.classList.remove('smooth-reset'), 300);
+    }
+    container.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+    if (zoomBadge) {
+      zoomBadge.textContent = `${Math.round(scale * 100)}%`;
+    }
+  }
+
+  // Mouse wheel zoom centered on cursor
+  viewport.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    const rect = viewport.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+    let newScale = scale * zoomFactor;
+
+    if (newScale < MIN_SCALE) newScale = MIN_SCALE;
+    if (newScale > MAX_SCALE) newScale = MAX_SCALE;
+
+    if (newScale === scale) return;
+
+    // Zoom centered on cursor position relative to viewport
+    translateX = mouseX - (mouseX - translateX) * (newScale / scale);
+    translateY = mouseY - (mouseY - translateY) * (newScale / scale);
+    scale = newScale;
+
+    updateTransform(false);
+  }, { passive: false });
+
+  // Mouse Drag / Pan
+  viewport.addEventListener('mousedown', function(e) {
+    // Only primary mouse button and do not trigger if clicking an interactive inner button
+    if (e.button !== 0 || e.target.closest('button')) return;
+    
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    initialTranslateX = translateX;
+    initialTranslateY = translateY;
+    viewport.classList.add('is-panning');
+  });
+
+  window.addEventListener('mousemove', function(e) {
+    if (!isDragging) return;
+    e.preventDefault();
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    translateX = initialTranslateX + dx;
+    translateY = initialTranslateY + dy;
+    updateTransform(false);
+  });
+
+  window.addEventListener('mouseup', function() {
+    if (isDragging) {
+      isDragging = false;
+      viewport.classList.remove('is-panning');
+    }
+  });
+
+  // Double Click Zoom: zooms in or toggles back to 1x if heavily zoomed
+  viewport.addEventListener('dblclick', function(e) {
+    if (e.target.closest('button')) return;
+    const rect = viewport.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    if (scale >= 2.0) {
+      resetZoomAndPan();
+    } else {
+      const targetScale = Math.min(scale * 1.8, MAX_SCALE);
+      translateX = mouseX - (mouseX - translateX) * (targetScale / scale);
+      translateY = mouseY - (mouseY - translateY) * (targetScale / scale);
+      scale = targetScale;
+      updateTransform(true);
+    }
+  });
+
+  // Zoom Button Controls
+  function zoomIn() {
+    const rect = viewport.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    const newScale = Math.min(scale + ZOOM_STEP, MAX_SCALE);
+    translateX = centerX - (centerX - translateX) * (newScale / scale);
+    translateY = centerY - (centerY - translateY) * (newScale / scale);
+    scale = newScale;
+    updateTransform(true);
+  }
+
+  function zoomOut() {
+    const rect = viewport.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    const newScale = Math.max(scale - ZOOM_STEP, MIN_SCALE);
+    translateX = centerX - (centerX - translateX) * (newScale / scale);
+    translateY = centerY - (centerY - translateY) * (newScale / scale);
+    scale = newScale;
+    updateTransform(true);
+  }
+
+  function resetZoomAndPan() {
+    scale = 1.0;
+    translateX = 0;
+    translateY = 0;
+    updateTransform(true);
+  }
+
+  // Initial update
+  updateTransform();
+</script>
+
+
+
+
+</body></html>
