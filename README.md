@@ -42,8 +42,8 @@ graph LR
         DB[("MySQL<br>(Relacional)")]
     end
 
-    JS <-->|Requisições HTTP (Fetch/Polling)| API
-    Regras <-->|Consultas SQL| DB
+    JS -->|Requisições HTTP| API
+    Regras -->|Consultas SQL| DB
     
     classDef frontend fill:#151e32,stroke:#f5b700,stroke-width:2px,color:#fff;
     classDef backend fill:#0d1627,stroke:#dc3545,stroke-width:2px,color:#fff;
