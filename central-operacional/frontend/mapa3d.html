@@ -1,0 +1,2881 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+  <title>Mapa 3D Interativo — Shopping Capim Dourado</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #071d3d;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      outline: none;
+    }
+    .glass-hud {
+      background: linear-gradient(145deg, rgba(4, 12, 26, 0.88), rgba(2, 6, 16, 0.80));
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(94, 242, 255, 0.32);
+      box-shadow: 0 0 0 1px rgba(255, 207, 86, 0.07) inset, 0 18px 50px rgba(0, 0, 0, 0.75), 0 0 26px rgba(94, 242, 255, 0.12);
+    }
+    .ctrl-btn {
+      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .ctrl-btn:hover {
+      background: rgba(94, 242, 255, 0.16);
+      border-color: rgba(94, 242, 255, 0.6);
+      color: #effeff;
+      transform: translateY(-1px);
+    }
+    .ctrl-btn.active {
+      background: linear-gradient(135deg, rgba(94, 242, 255, 0.28), rgba(246, 185, 59, 0.20));
+      border-color: #5ef2ff;
+      color: #e6fdff;
+      box-shadow: 0 0 16px rgba(94, 242, 255, 0.35);
+    }
+    .orb, h1, h2 {
+      font-family: 'Orbitron', 'Inter', sans-serif !important;
+      letter-spacing: 0.08em;
+    }
+    .stat-num {
+      font-family: 'Orbitron', sans-serif;
+      color: #9ff6ff;
+      text-shadow: 0 0 10px rgba(94, 242, 255, 0.6);
+    }
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #5ef2ff;
+      box-shadow: 0 0 10px #5ef2ff;
+      animation: lp 1.4s infinite;
+    }
+    @keyframes lp { 50% { opacity: 0.25; } }
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card-animate {
+      animation: fadeSlideUp 0.22s ease-out forwards;
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .leg-off { opacity: 0.35; }
+    .leg-off .leg-dot { box-shadow: none !important; background: #475569 !important; }
+  </style>
+</head>
+<body>
+  <!-- Contêiner principal 3D -->
+  <div id="canvas-container"></div>
+
+  <!-- Cabeçalho & Busca Rápida -->
+  <div class="fixed top-4 left-4 z-20 flex flex-col sm:flex-row items-start sm:items-center gap-2.5 max-w-[92vw]">
+    <div id="hud-title" class="glass-hud rounded-2xl px-4 py-2.5 flex items-center gap-3 pointer-events-none">
+      <div class="w-2.5 h-2.5 rounded-full bg-cyan-300 shadow-[0_0_12px_#5ef2ff]"></div>
+      <div>
+        <h1 class="text-xs sm:text-sm font-semibold tracking-wider text-cyan-100 uppercase">Shopping Capim Dourado</h1>
+        <p class="text-[11px] text-slate-300">Maquete 3D Interativa • Palmas - TO • 38.800,50 m²</p>
+      </div>
+    </div>
+
+    <!-- Busca Rápida -->
+    <div class="relative w-60 sm:w-64">
+      <div class="glass-hud rounded-2xl px-3 py-2 flex items-center gap-2">
+        <svg class="w-3.5 h-3.5 text-cyan-300 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+        </svg>
+        <input
+          id="store-search-input"
+          type="text"
+          placeholder="Buscar loja ou ponto..."
+          autocomplete="off"
+          class="w-full bg-transparent text-xs text-slate-100 placeholder-slate-400 focus:outline-none"
+        />
+        <button id="clear-search-btn" type="button" class="hidden text-slate-400 hover:text-cyan-200 text-xs">✕</button>
+      </div>
+      <div id="search-results" class="hidden mt-1.5 glass-hud rounded-xl overflow-hidden max-h-56 overflow-y-auto no-scrollbar divide-y divide-cyan-200/10"></div>
+    </div>
+  </div>
+
+  <!-- Controles laterais de Estilo e Efeitos Futuristas -->
+  <div class="fixed left-4 top-1/2 -translate-y-1/2 z-20 glass-hud rounded-2xl p-2 hidden sm:flex flex-col gap-1.5">
+    <div class="orb text-[9px] text-cyan-300/80 px-1 uppercase" style="letter-spacing:0.25em">Estilo</div>
+    <button data-style="neon" class="ctrl-btn px-3 py-2 rounded-xl border border-transparent text-[11px] font-medium text-slate-200 text-left whitespace-nowrap active">Noite Neon</button>
+    <button data-style="day" class="ctrl-btn px-3 py-2 rounded-xl border border-transparent text-[11px] font-medium text-slate-200 text-left whitespace-nowrap">Dia</button>
+    <div class="h-px bg-cyan-300/20 my-1"></div>
+    <div class="orb text-[9px] text-cyan-300/80 px-1 uppercase" style="letter-spacing:0.25em">Efeitos</div>
+    <button data-fx="flow" class="ctrl-btn px-3 py-2 rounded-xl border border-transparent text-[11px] font-medium text-slate-200 text-left whitespace-nowrap active">Fluxos</button>
+    <button data-fx="drones" class="ctrl-btn px-3 py-2 rounded-xl border border-transparent text-[11px] font-medium text-slate-200 text-left whitespace-nowrap active">Drones</button>
+    <button data-fx="beams" class="ctrl-btn px-3 py-2 rounded-xl border border-transparent text-[11px] font-medium text-slate-200 text-left whitespace-nowrap active">Feixes Luz</button>
+  </div>
+
+  <!-- Painel Digital Twin (Telemetry) -->
+  <div class="fixed left-4 bottom-[84px] z-20 glass-hud rounded-2xl px-4 py-3 w-56 hidden lg:block pointer-events-none">
+    <div class="flex items-center gap-2 mb-2"><span class="live-dot"></span><span class="orb text-[10px] text-cyan-200 uppercase">Digital Twin</span></div>
+    <div class="grid grid-cols-2 gap-x-3 gap-y-2 text-[10px] text-slate-300">
+      <div>Visitantes<div id="st-vis" class="stat-num text-sm">1.860</div></div>
+      <div>Estacionamento<div id="st-park" class="stat-num text-sm">64%</div></div>
+      <div>Energia<div id="st-en" class="stat-num text-sm">1.190 kW</div></div>
+      <div>Espaços<div id="st-sp" class="stat-num text-sm">34</div></div>
+    </div>
+  </div>
+
+  <!-- Legenda de Categorias -->
+  <div id="category-legend" class="fixed right-4 bottom-[84px] z-20 glass-hud rounded-2xl px-3 py-2.5 hidden md:flex flex-col gap-1">
+    <div class="orb text-[9px] text-cyan-300/80 px-1 mb-1 uppercase" style="letter-spacing:0.25em">Categorias</div>
+    <button type="button" data-cat="moda" class="ctrl-btn px-2 py-1 rounded-lg border border-transparent text-[11px] text-slate-200 text-left flex items-center gap-2">
+      <span class="leg-dot inline-block w-2.5 h-2.5 rounded-full" style="background:#e879b9"></span>
+      <span>Moda & Beleza</span>
+    </button>
+    <button type="button" data-cat="food" class="ctrl-btn px-2 py-1 rounded-lg border border-transparent text-[11px] text-slate-200 text-left flex items-center gap-2">
+      <span class="leg-dot inline-block w-2.5 h-2.5 rounded-full" style="background:#f0a848"></span>
+      <span>Alimentação</span>
+    </button>
+    <button type="button" data-cat="lazer" class="ctrl-btn px-2 py-1 rounded-lg border border-transparent text-[11px] text-slate-200 text-left flex items-center gap-2">
+      <span class="leg-dot inline-block w-2.5 h-2.5 rounded-full" style="background:#a78bfa"></span>
+      <span>Lazer & Esportes</span>
+    </button>
+    <button type="button" data-cat="casa" class="ctrl-btn px-2 py-1 rounded-lg border border-transparent text-[11px] text-slate-200 text-left flex items-center gap-2">
+      <span class="leg-dot inline-block w-2.5 h-2.5 rounded-full" style="background:#56cfe1"></span>
+      <span>Casa & Varejo</span>
+    </button>
+    <button type="button" data-cat="vaga" class="ctrl-btn px-2 py-1 rounded-lg border border-transparent text-[11px] text-slate-200 text-left flex items-center gap-2">
+      <span class="leg-dot inline-block w-2.5 h-2.5 rounded-full" style="background:#7c8b9e"></span>
+      <span>Vagas</span>
+    </button>
+  </div>
+
+  <!-- Tooltip de Hover -->
+  <div id="hover-pill" class="fixed z-30 pointer-events-none hidden px-3 py-1.5 rounded-xl glass-hud text-xs font-medium text-cyan-100 shadow-lg whitespace-nowrap"></div>
+
+  <!-- Cartão Flutuante de Seleção -->
+  <div id="selection-card" class="fixed top-4 right-4 z-20 hidden w-72 sm:w-80 glass-hud rounded-2xl p-4 text-slate-100 card-animate">
+    <div class="flex items-start justify-between gap-2">
+      <div>
+        <span id="sel-badge" class="inline-block text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-md bg-cyan-400/20 text-cyan-200 border border-cyan-300/35 mb-1.5">1º Pavimento</span>
+        <h2 id="sel-title" class="text-base font-bold text-white leading-snug">Loja Selecionada</h2>
+      </div>
+      <button id="close-card-btn" type="button" aria-label="Fechar" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+    <p id="sel-desc" class="text-xs text-slate-300 mt-2 leading-relaxed">Operação comercial do mix arquitetônico.</p>
+    <div class="mt-3 pt-2.5 border-t border-cyan-200/15 flex items-center justify-between text-[11px] text-slate-300">
+      <span id="sel-category">Categoria: Varejo</span>
+      <span id="sel-area" class="text-cyan-200 font-medium">Área: Conforme planta</span>
+    </div>
+    <button id="btn-focus-interior" type="button" class="mt-3 w-full py-2 px-3 rounded-xl bg-cyan-400/20 hover:bg-cyan-400/30 border border-cyan-300/40 text-cyan-100 text-xs font-semibold transition flex items-center justify-center gap-1.5">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+      </svg>
+      <span>Aproximar interior 3D</span>
+    </button>
+  </div>
+
+  <!-- Barra de Controles Inferior -->
+  <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-20 max-w-[96vw]">
+    <div class="glass-hud rounded-2xl px-2.5 py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+      <button id="btn-overview" class="ctrl-btn px-3 py-2 rounded-xl border border-transparent text-xs font-medium text-slate-200 whitespace-nowrap flex items-center gap-1.5" title="Visão geral da maquete">
+        <span>Visão geral</span>
+      </button>
+      <button id="btn-floor1" class="ctrl-btn px-3 py-2 rounded-xl border border-transparent text-xs font-medium text-slate-200 whitespace-nowrap flex items-center gap-1.5" title="Isolar e aproximar 1º Pavimento">
+        <span>Pavimento inferior</span>
+      </button>
+      <button id="btn-floor2" class="ctrl-btn px-3 py-2 rounded-xl border border-transparent text-xs font-medium text-slate-200 whitespace-nowrap flex items-center gap-1.5" title="Isolar e aproximar 2º Pavimento">
+        <span>Pavimento superior</span>
+      </button>
+      <button id="btn-exploded" class="ctrl-btn active px-3 py-2 rounded-xl border border-transparent text-xs font-medium text-slate-200 whitespace-nowrap flex items-center gap-1.5" title="Visão explodida">
+        <span>Visão explodida</span>
+      </button>
+      <div class="h-5 w-px bg-cyan-200/20 mx-0.5 shrink-0"></div>
+      <button id="btn-names" class="ctrl-btn active px-3 py-2 rounded-xl border border-transparent text-xs font-medium text-slate-200 whitespace-nowrap flex items-center gap-1.5" title="Exibir/Ocultar nomes das lojas">
+        <span>Nomes das lojas</span>
+      </button>
+      <button id="btn-pins" class="ctrl-btn px-3 py-2 rounded-xl border border-transparent text-xs font-medium text-slate-200 whitespace-nowrap flex items-center gap-1.5" title="Exibir/Ocultar pins 3D">
+        <span>Pins 3D</span>
+      </button>
+      <button id="btn-rotate" class="ctrl-btn px-3 py-2 rounded-xl border border-transparent text-xs font-medium text-slate-200 whitespace-nowrap flex items-center gap-1.5" title="Girar modelo 360°">
+        <span>Girar modelo</span>
+      </button>
+      <button id="btn-zoom" class="ctrl-btn px-3 py-2 rounded-xl border border-transparent text-xs font-medium text-slate-200 whitespace-nowrap flex items-center gap-1.5" title="Aproximar">
+        <span>Aproximar</span>
+      </button>
+      <button id="btn-transparent" class="ctrl-btn px-3 py-2 rounded-xl border border-transparent text-xs font-medium text-slate-200 whitespace-nowrap flex items-center gap-1.5" title="Modo transparente">
+        <span>Modo transparente</span>
+      </button>
+      <button id="btn-walls" class="ctrl-btn px-3 py-2 rounded-xl border border-transparent text-xs font-medium text-slate-200 whitespace-nowrap flex items-center gap-1.5" title="Ocultar paredes">
+        <span>Ocultar paredes</span>
+      </button>
+      <button id="btn-reset" class="ctrl-btn px-3 py-2 rounded-xl border border-cyan-300/35 text-xs font-semibold text-cyan-200 whitespace-nowrap flex items-center gap-1.5" title="Restaurar visualização">
+        <span>Restaurar</span>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================================
+    // 1. INICIALIZAÇÃO DA CENA 3D, CÉU PROCEDURAL E ESTÚDIO ARQUITETÔNICO
+    // ============================================================================
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x071d3d);
+    scene.fog = new THREE.FogExp2(0x071d3d, 0.00095);
+
+    const camera = new THREE.PerspectiveCamera(34, window.innerWidth / window.innerHeight, 0.5, 950);
+    const INITIAL_CAM_POS = new THREE.Vector3(-9, 86, 106);
+    const INITIAL_TARGET = new THREE.Vector3(-4, 5, 0);
+    camera.position.copy(INITIAL_CAM_POS);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.target.copy(INITIAL_TARGET);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.maxPolarAngle = Math.PI * 0.485;
+    controls.minDistance = 14;
+    controls.maxDistance = 245;
+    controls.update();
+
+    // Céu procedural em domo com gradiente
+    const skyUniforms = {
+      top: { value: new THREE.Color(0x020818) },
+      mid: { value: new THREE.Color(0x0a264f) },
+      bot: { value: new THREE.Color(0x113a6e) }
+    };
+    const skyDome = new THREE.Mesh(
+      new THREE.SphereGeometry(700, 32, 18),
+      new THREE.ShaderMaterial({
+        uniforms: skyUniforms,
+        side: THREE.BackSide,
+        depthWrite: false,
+        fog: false,
+        vertexShader: `varying vec3 vD; void main(){ vD=normalize(position); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+        fragmentShader: `
+          uniform vec3 top; uniform vec3 mid; uniform vec3 bot; varying vec3 vD;
+          void main(){
+            float h = max(vD.y, 0.0);
+            vec3 c = mix(bot, mid, smoothstep(0.0, 0.28, h));
+            c = mix(c, top, smoothstep(0.2, 1.0, h));
+            gl_FragColor = vec4(c, 1.0);
+          }`
+      })
+    );
+    skyDome.renderOrder = -100;
+    scene.add(skyDome);
+
+    // Estrelas no céu noturno
+    const starCoords = new Float32Array(1500 * 3);
+    for (let i = 0; i < 1500; i++) {
+      const u = Math.random() * Math.PI * 2;
+      const v = Math.acos(Math.random() * 0.92 + 0.08);
+      const r = 640;
+      starCoords[i * 3] = r * Math.sin(v) * Math.cos(u);
+      starCoords[i * 3 + 1] = r * Math.cos(v);
+      starCoords[i * 3 + 2] = r * Math.sin(v) * Math.sin(u);
+    }
+    const starGeo = new THREE.BufferGeometry();
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starCoords, 3));
+    const starField = new THREE.Points(starGeo, new THREE.PointsMaterial({
+      color: 0xaad4ff, size: 1.7, sizeAttenuation: false, transparent: true, opacity: 1, depthWrite: false, fog: false
+    }));
+    starField.renderOrder = -99;
+    scene.add(starField);
+
+    // ============================================================================
+    // 2. ILUMINAÇÃO DE ESTÚDIO E LUZES CALIBRADAS
+    // ============================================================================
+    const hemiLight = new THREE.HemisphereLight(0xdcebff, 0x2a3b59, 1.15);
+    scene.add(hemiLight);
+
+    const sunLight = new THREE.DirectionalLight(0xfff4de, 1.55);
+    sunLight.position.set(56, 128, 72);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.near = 20;
+    sunLight.shadow.camera.far = 280;
+    const dShadow = 88;
+    sunLight.shadow.camera.left = -dShadow;
+    sunLight.shadow.camera.right = dShadow;
+    sunLight.shadow.camera.top = dShadow;
+    sunLight.shadow.camera.bottom = -dShadow;
+    sunLight.shadow.bias = -0.0005;
+    scene.add(sunLight);
+
+    const rimLight = new THREE.DirectionalLight(0x38e1ff, 0.65);
+    rimLight.position.set(-82, 62, -74);
+    scene.add(rimLight);
+
+    [
+      [-14, 16, 6, 32, 80],
+      [36, 15, -4, 30, 78],
+      [-36, 20, 4, 28, 60]
+    ].forEach(([lx, ly, lz, intensity, dist]) => {
+      const pLight = new THREE.PointLight(0xffc66d, intensity, dist, 1.65);
+      pLight.position.set(lx, ly, lz);
+      scene.add(pLight);
+    });
+
+    // ============================================================================
+    // 3. CHÃO INFINITO COM GRADE RADAR PULSANTE E ANÉIS HUD ORBITAIS
+    // ============================================================================
+    const shaderTime = { value: 0 };
+    const neonGroundUniforms = {
+      uTime: shaderTime,
+      uBase: { value: new THREE.Color(0x07152b) },
+      uGrid: { value: new THREE.Color(0x2ee6ff) },
+      uFog: { value: new THREE.Color(0x071d3d) },
+      uGridI: { value: 0.95 }
+    };
+
+    const groundMat = new THREE.ShaderMaterial({
+      uniforms: neonGroundUniforms,
+      extensions: { derivatives: true },
+      vertexShader: `varying vec3 vW; void main(){ vec4 w=modelMatrix*vec4(position,1.0); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }`,
+      fragmentShader: `
+        uniform float uTime; uniform vec3 uBase; uniform vec3 uGrid; uniform vec3 uFog; uniform float uGridI;
+        varying vec3 vW;
+        float grid(vec2 p,float s){ vec2 q=p/s; vec2 g=abs(fract(q-0.5)-0.5)/fwidth(q); return 1.0-min(min(g.x,g.y),1.0); }
+        void main(){
+          vec2 p = vW.xz; float d = length(p);
+          float big = grid(p, 12.0); float small = grid(p, 3.0);
+          float r = mod(uTime * 18.0, 190.0);
+          float wave = exp(-pow((d - r) / 3.0, 2.0));
+          float fade = exp(-d * 0.011);
+          vec3 col = uBase + uGrid * (big * 0.9 + small * 0.10) * uGridI * fade * (0.35 + wave * 2.6);
+          col += uGrid * wave * 0.10 * fade * uGridI;
+          col = mix(col, uFog, smoothstep(140.0, 430.0, d));
+          gl_FragColor = vec4(col, 1.0);
+        }`
+    });
+    const groundPlane = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), groundMat);
+    groundPlane.rotation.x = -Math.PI / 2;
+    groundPlane.position.y = -5.47;
+    scene.add(groundPlane);
+
+    function createHudRing(r, y, dash, gap, color, opacity) {
+      const pts = [];
+      for (let i = 0; i <= 256; i++) {
+        const a = (i / 256) * Math.PI * 2;
+        pts.push(new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r));
+      }
+      const l = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineDashedMaterial({ color, dashSize: dash, gapSize: gap, transparent: true, opacity })
+      );
+      l.computeLineDistances();
+      l.position.y = y;
+      scene.add(l);
+      return l;
+    }
+    const CYAN_HEX = 0x5ef2ff;
+    const hudRing1 = createHudRing(98, -5.3, 4, 2.5, CYAN_HEX, 0.75);
+    const hudRing2 = createHudRing(108, -5.3, 1.2, 3.2, 0xffd166, 0.55);
+
+    // ============================================================================
+    // 4. TEXTURAS PBR E MATERIAIS ARQUITETÔNICOS DE ALTA FIDELIDADE
+    // ============================================================================
+    function createMarbleTileTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#f3e5d0';
+      ctx.fillRect(0, 0, 512, 512);
+
+      for (let i = 0; i < 45; i++) {
+        ctx.strokeStyle = i % 2 === 0 ? 'rgba(165, 134, 96, 0.28)' : 'rgba(255, 248, 232, 0.22)';
+        ctx.lineWidth = 1 + Math.random() * 2;
+        ctx.beginPath();
+        const y = Math.random() * 512;
+        ctx.moveTo(0, y);
+        ctx.bezierCurveTo(170, y + (Math.random() - 0.5) * 35, 340, y + (Math.random() - 0.5) * 35, 512, y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = 'rgba(116, 90, 62, 0.58)';
+      ctx.lineWidth = 2.2;
+      const step = 64;
+      for (let x = 0; x <= 512; x += step) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 512); ctx.stroke();
+      }
+      for (let y = 0; y <= 512; y += step) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(512, y); ctx.stroke();
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(16, 12);
+      tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+
+    function createAsphaltParkingTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#1b202a';
+      ctx.fillRect(0, 0, 512, 512);
+
+      for (let i = 0; i < 3400; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.14)';
+        ctx.fillRect(x, y, 2, 2);
+      }
+
+      ctx.strokeStyle = 'rgba(220, 228, 240, 0.36)';
+      ctx.lineWidth = 3;
+      for (let x = 24; x < 500; x += 36) {
+        ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x, 125); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, 200); ctx.lineTo(x, 305); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, 380); ctx.lineTo(x, 485); ctx.stroke();
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(4, 3);
+      tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+
+    function createStoreTopEmblemTexture(label, bgHex, textHex, accentHex, badgeShape = 'none', interiorType = 'fashion') {
+      const c = document.createElement('canvas');
+      c.width = 1024;
+      c.height = 1024;
+      const ctx = c.getContext('2d');
+
+      ctx.fillStyle = bgHex;
+      ctx.fillRect(0, 0, 1024, 1024);
+
+      if (interiorType === 'fashion' || interiorType === 'books-home') {
+        ctx.fillStyle = 'rgba(255, 248, 232, 0.08)';
+        for (let py = 0; py < 1024; py += 64) {
+          if ((py / 64) % 2 === 0) ctx.fillRect(0, py, 1024, 32);
+        }
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.16)';
+        ctx.lineWidth = 2;
+        for (let py = 0; py < 1024; py += 32) {
+          ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(1024, py); ctx.stroke();
+        }
+      } else if (interiorType === 'sports-shoes') {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.fillRect(140, 140, 744, 744);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.lineWidth = 6;
+        ctx.strokeRect(160, 160, 704, 704);
+      } else if (interiorType === 'cinema') {
+        ctx.fillStyle = '#450a0a';
+        ctx.fillRect(36, 36, 952, 952);
+        ctx.fillStyle = '#7f1d1d';
+        ctx.fillRect(90, 90, 844, 844);
+      } else if (interiorType === 'dining') {
+        for (let gx = 0; gx < 1024; gx += 128) {
+          for (let gy = 0; gy < 1024; gy += 128) {
+            if (((gx + gy) / 128) % 2 === 0) {
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.09)';
+              ctx.fillRect(gx, gy, 128, 128);
+            }
+          }
+        }
+      }
+
+      const depthGrad = ctx.createRadialGradient(512, 512, 120, 512, 512, 740);
+      depthGrad.addColorStop(0, 'rgba(255, 255, 255, 0.18)');
+      depthGrad.addColorStop(0.68, 'rgba(255, 255, 255, 0.03)');
+      depthGrad.addColorStop(1, 'rgba(0, 0, 0, 0.24)');
+      ctx.fillStyle = depthGrad;
+      ctx.fillRect(0, 0, 1024, 1024);
+
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.13)';
+      ctx.lineWidth = 3;
+      for (let g = 128; g < 1024; g += 128) {
+        ctx.beginPath(); ctx.moveTo(g, 0); ctx.lineTo(g, 1024); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, g); ctx.lineTo(1024, g); ctx.stroke();
+      }
+
+      ctx.strokeStyle = accentHex;
+      ctx.lineWidth = 26;
+      ctx.strokeRect(24, 24, 976, 976);
+
+      if (badgeShape === 'circle-red') {
+        ctx.fillStyle = '#e11d48';
+        ctx.beginPath();
+        ctx.arc(512, 360, 126, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '800 132px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('r', 512, 366);
+      } else if (badgeShape === 'ca-oval') {
+        ctx.strokeStyle = '#1d4ed8';
+        ctx.lineWidth = 24;
+        ctx.beginPath();
+        ctx.ellipse(512, 512, 268, 178, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (badgeShape === 'mcd-arches') {
+        ctx.strokeStyle = '#ffbc0d';
+        ctx.lineWidth = 38;
+        ctx.beginPath();
+        ctx.moveTo(330, 500);
+        ctx.bezierCurveTo(350, 220, 480, 220, 512, 460);
+        ctx.bezierCurveTo(544, 220, 674, 220, 694, 500);
+        ctx.stroke();
+      } else if (badgeShape === 'cinemark') {
+        ctx.fillStyle = '#dc2626';
+        ctx.beginPath();
+        ctx.arc(512, 380, 118, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(534, 380, 58, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#dc2626';
+        ctx.beginPath();
+        ctx.arc(558, 380, 38, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (badgeShape === 'immersive') {
+        const neonGrad = ctx.createLinearGradient(0, 0, 1024, 1024);
+        neonGrad.addColorStop(0, '#312e81');
+        neonGrad.addColorStop(0.5, '#7c3aed');
+        neonGrad.addColorStop(1, '#ec4899');
+        ctx.fillStyle = neonGrad;
+        ctx.fillRect(40, 40, 944, 944);
+      }
+
+      if (label) {
+        ctx.fillStyle = textHex;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetY = 4;
+        const lines = label.split('\n');
+        const fontSize = lines.length > 1 ? 92 : (label.length > 11 ? 80 : (label.length > 7 ? 104 : 136));
+        ctx.font = `800 ${fontSize}px Inter, sans-serif`;
+        const yOffset = (badgeShape === 'circle-red' || badgeShape === 'cinemark') ? 635 : (badgeShape === 'mcd-arches' ? 650 : 512);
+        lines.forEach((line, idx) => {
+          ctx.fillText(line, 512, yOffset + (idx - (lines.length - 1) / 2) * (fontSize * 1.15));
+        });
+        ctx.shadowColor = 'transparent';
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+
+    function createStoreFasciaSignTexture(label, bgHex, textHex, accentHex) {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 128;
+      const ctx = c.getContext('2d');
+
+      ctx.fillStyle = bgHex;
+      ctx.fillRect(0, 0, 512, 128);
+
+      ctx.strokeStyle = accentHex;
+      ctx.lineWidth = 8;
+      ctx.strokeRect(4, 4, 504, 120);
+
+      const cleanTitle = label.replace('\n', ' ');
+      ctx.fillStyle = textHex;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const fontSize = cleanTitle.length > 14 ? 32 : (cleanTitle.length > 9 ? 40 : 50);
+      ctx.font = `800 ${fontSize}px Inter, sans-serif`;
+      ctx.fillText(cleanTitle, 256, 66);
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+
+    function createPinTargetTexture() {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+
+      ctx.clearRect(0, 0, 256, 256);
+      const halo = ctx.createRadialGradient(128, 128, 45, 128, 128, 124);
+      halo.addColorStop(0, 'rgba(255, 209, 102, 0.78)');
+      halo.addColorStop(0.65, 'rgba(255, 190, 60, 0.25)');
+      halo.addColorStop(1, 'rgba(255, 190, 60, 0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(128, 128, 124, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffd166';
+      ctx.beginPath();
+      ctx.arc(128, 128, 76, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(128, 128, 42, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffe8a3';
+      ctx.beginPath();
+      ctx.arc(128, 128, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+
+    function createPlinthLogoTexture() {
+      const c = document.createElement('canvas');
+      c.width = 1024;
+      c.height = 192;
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, 1024, 192);
+
+      ctx.save();
+      ctx.translate(250, 132);
+      ctx.strokeStyle = '#f3cf74';
+      ctx.lineWidth = 4.5;
+      ctx.lineCap = 'round';
+      const stems = [
+        [-28, -68, -6, -34], [-14, -84, -3, -40], [0, -92, 0, -44],
+        [15, -82, 4, -38], [30, -64, 8, -30], [-38, -46, -10, -22], [38, -44, 10, -20]
+      ];
+      stems.forEach(([tx, ty, cx, cy]) => {
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(cx, cy, tx, ty);
+        ctx.stroke();
+        ctx.fillStyle = '#ffe299';
+        ctx.beginPath();
+        ctx.arc(tx, ty, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+
+      ctx.fillStyle = '#f8d982';
+      ctx.font = '700 40px Inter, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('CAPIM DOURADO', 325, 80);
+
+      ctx.fillStyle = '#e0ba60';
+      ctx.font = '600 22px Inter, sans-serif';
+      ctx.fillText('S   H   O   P   P   I   N   G', 385, 126);
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+
+    const marbleTex = createMarbleTileTexture();
+    const asphaltTex = createAsphaltParkingTexture();
+    const pinTargetTex = createPinTargetTexture();
+
+    const matPlinthObsidian = new THREE.MeshStandardMaterial({ color: 0x050914, roughness: 0.38, metalness: 0.4 });
+    const matPlinthTopDeck = new THREE.MeshStandardMaterial({ color: 0x0b0f18, roughness: 0.82, metalness: 0.1 });
+    const matGoldEdge = new THREE.MeshStandardMaterial({ color: 0xffcf56, emissive: 0xe69c24, emissiveIntensity: 1.2, roughness: 0.22, metalness: 0.78 });
+    const matGoldTrim = new THREE.MeshStandardMaterial({ color: 0xf4c762, emissive: 0xc9821a, emissiveIntensity: 0.75, roughness: 0.28, metalness: 0.72 });
+    const matCutawaySlateWall = new THREE.MeshStandardMaterial({ color: 0x4a586d, emissive: 0x0d2b3d, emissiveIntensity: 0.9, roughness: 0.42, metalness: 0.22 });
+    const matCorridorMarble = new THREE.MeshStandardMaterial({ map: marbleTex, color: 0xf3e5d0, emissive: 0x3b2712, emissiveIntensity: 0.12, roughness: 0.38, metalness: 0.08 });
+    const matAsphalt = new THREE.MeshStandardMaterial({ map: asphaltTex, color: 0x1d232e, roughness: 0.88, metalness: 0.05 });
+    const matAvenueRoad = new THREE.MeshStandardMaterial({ color: 0x141821, roughness: 0.85, metalness: 0.08 });
+    const matGlassStorefront = new THREE.MeshPhysicalMaterial({ color: 0x8fe3ff, transparent: true, opacity: 0.28, roughness: 0.08, metalness: 0.15, reflectivity: 0.92 });
+    const matWaterAtrium = new THREE.MeshStandardMaterial({ color: 0x1882d6, emissive: 0x22d3ff, emissiveIntensity: 2.6, roughness: 0.14, metalness: 0.45 });
+    const matWoodSlats = new THREE.MeshStandardMaterial({ color: 0x523622, roughness: 0.55, metalness: 0.15 });
+    const matGreenFoliage = new THREE.MeshStandardMaterial({ color: 0x6eb050, roughness: 0.65, metalness: 0.05 });
+
+    const interactiveMeshes = [];
+    const wallMeshes = [];
+    const transparentTargetMaterials = [matCutawaySlateWall, matPlinthTopDeck];
+    const floatingPins = [];
+    const searchableItems = [];
+
+    // ============================================================================
+    // 5. MOBILIÁRIO INTERNO 3D REALISTA E COLORIDO POR SEGMENTO
+    // ============================================================================
+    function createWallLightbox(storeGroup, w, d, h, accentHex, secondaryHex = '#ffffff') {
+      const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.35, metalness: 0.6 });
+      const glowMat1 = new THREE.MeshStandardMaterial({ color: accentHex, emissive: accentHex, emissiveIntensity: 0.95, roughness: 0.2 });
+      const glowMat2 = new THREE.MeshStandardMaterial({ color: secondaryHex, emissive: secondaryHex, emissiveIntensity: 0.85, roughness: 0.2 });
+
+      if (w >= 2.2) {
+        const panelW = Math.min(w * 0.56, 4.6);
+        const panelH = h * 0.44;
+        const backPanel = new THREE.Mesh(new THREE.BoxGeometry(panelW, panelH, 0.08), glowMat1);
+        backPanel.position.set(0, h * 0.56, -d / 2 + 0.24);
+        storeGroup.add(backPanel);
+
+        const backBorder = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.14, panelH + 0.14, 0.05), frameMat);
+        backBorder.position.set(0, h * 0.56, -d / 2 + 0.21);
+        storeGroup.add(backBorder);
+      }
+
+      if (d >= 4.2 && w >= 4.0) {
+        const sideD = Math.min(d * 0.38, 2.8);
+        const sideH = h * 0.4;
+        [-1, 1].forEach((side, idx) => {
+          const sPanel = new THREE.Mesh(new THREE.BoxGeometry(0.08, sideH, sideD), idx === 0 ? glowMat2 : glowMat1);
+          sPanel.position.set(side * (w / 2 - 0.24), h * 0.55, -d * 0.05);
+          storeGroup.add(sPanel);
+        });
+      }
+    }
+
+    function createWindowMannequin(storeGroup, x, z, h, outfitColorHex) {
+      const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.24, 0.28, 0.08, 12),
+        new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.5, roughness: 0.25 })
+      );
+      base.position.set(x, 0.28, z);
+      storeGroup.add(base);
+
+      const torso = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.15, 0.19, h * 0.42, 10),
+        new THREE.MeshStandardMaterial({ color: outfitColorHex, emissive: outfitColorHex, emissiveIntensity: 0.22, roughness: 0.45 })
+      );
+      torso.position.set(x, 0.32 + h * 0.24, z);
+      storeGroup.add(torso);
+
+      const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.13, 10, 10),
+        new THREE.MeshStandardMaterial({ color: 0xfde68a, roughness: 0.35 })
+      );
+      head.position.set(x, 0.32 + h * 0.52, z);
+      storeGroup.add(head);
+    }
+
+    function buildStoreInterior3D(storeGroup, interiorType, w, d, h, accentHex) {
+      const accentColor = new THREE.Color(accentHex);
+      const woodMat = new THREE.MeshStandardMaterial({ color: 0xa46c38, roughness: 0.45 });
+      const whiteCounterMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.28 });
+      const darkMetalMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.35, metalness: 0.65 });
+      const screenGlowMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, emissive: 0x38bdf8, emissiveIntensity: 0.95 });
+      const garmentPalette = [0xef4444, 0x2563eb, 0xfacc15, 0x10b981, 0xf8fafc, 0xec4899, 0xf97316, 0x8b5cf6];
+
+      const usableW = Math.max(0.8, w - 0.8);
+      const usableD = Math.max(0.8, d - 0.8);
+
+      createWallLightbox(storeGroup, w, d, h, accentHex, '#fde68a');
+
+      if (interiorType === 'fashion') {
+        const counterW = Math.min(usableW * 0.48, 3.4);
+        const counter = new THREE.Mesh(new THREE.BoxGeometry(counterW, h * 0.34, 0.58), whiteCounterMat);
+        counter.position.set(0, h * 0.17 + 0.18, -usableD * 0.32);
+        storeGroup.add(counter);
+
+        const ledStrip = new THREE.Mesh(
+          new THREE.BoxGeometry(counterW + 0.06, 0.09, 0.64),
+          new THREE.MeshStandardMaterial({ color: accentColor, emissive: accentColor, emissiveIntensity: 0.85 })
+        );
+        ledStrip.position.set(0, h * 0.34 + 0.22, -usableD * 0.32);
+        storeGroup.add(ledStrip);
+
+        if (w >= 6.0 && d >= 4.5) {
+          const table = new THREE.Mesh(new THREE.BoxGeometry(1.9, h * 0.26, 1.05), woodMat);
+          table.position.set(0, h * 0.13 + 0.18, 0.05);
+          storeGroup.add(table);
+
+          [-0.55, 0, 0.55].forEach((fx, idx) => {
+            const stackColor = garmentPalette[(idx * 2 + 1) % garmentPalette.length];
+            const stack = new THREE.Mesh(
+              new THREE.BoxGeometry(0.42, 0.18, 0.52),
+              new THREE.MeshStandardMaterial({ color: stackColor, roughness: 0.55 })
+            );
+            stack.position.set(fx, h * 0.26 + 0.27, 0.05);
+            storeGroup.add(stack);
+          });
+        }
+
+        if (w >= 5.0) {
+          createWindowMannequin(storeGroup, -usableW * 0.28, usableD * 0.36, h, garmentPalette[0]);
+          createWindowMannequin(storeGroup, usableW * 0.28, usableD * 0.36, h, garmentPalette[1]);
+        }
+
+        const cols = w >= 11 ? 4 : (w >= 6.5 ? 3 : (w >= 4.2 ? 2 : 1));
+        const rows = d >= 7.5 ? 2 : 1;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const rx = cols === 1 ? 0 : (-usableW * 0.34 + (c * usableW * 0.68) / (cols - 1));
+            const rz = rows === 1 ? 0.12 : (-usableD * 0.08 + r * usableD * 0.32);
+            if (w >= 6.0 && d >= 4.5 && Math.abs(rx) < 1.1 && Math.abs(rz - 0.05) < 0.7) continue;
+
+            const rackBar = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.05, 0.05), darkMetalMat);
+            rackBar.position.set(rx, h * 0.46, rz);
+            storeGroup.add(rackBar);
+
+            [-0.68, 0.68].forEach((legOffset) => {
+              const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, h * 0.38, 0.45), darkMetalMat);
+              leg.position.set(rx + legOffset, h * 0.25, rz);
+              storeGroup.add(leg);
+            });
+
+            for (let g = -0.54; g <= 0.54; g += 0.18) {
+              const gColor = garmentPalette[Math.abs(Math.round((rx + g) * 13 + r * 5 + c)) % garmentPalette.length];
+              const cloth = new THREE.Mesh(
+                new THREE.BoxGeometry(0.14, h * 0.28, 0.36),
+                new THREE.MeshStandardMaterial({ color: gColor, emissive: gColor, emissiveIntensity: 0.14, roughness: 0.55 })
+              );
+              cloth.position.set(rx + g, h * 0.32, rz);
+              storeGroup.add(cloth);
+            }
+          }
+        }
+      } else if (interiorType === 'sports-shoes') {
+        const islands = w >= 10 ? 3 : 2;
+        const shoeColors = [0xef4444, 0x2563eb, 0xfacc15, 0x10b981, 0xf97316, 0xec4899];
+        for (let i = 0; i < islands; i++) {
+          const ix = -usableW * 0.3 + (i * usableW * 0.6) / Math.max(1, islands - 1);
+          const stand = new THREE.Mesh(new THREE.BoxGeometry(1.45, h * 0.32, 0.95), whiteCounterMat);
+          stand.position.set(ix, h * 0.16 + 0.18, 0.08);
+          storeGroup.add(stand);
+
+          const rim = new THREE.Mesh(
+            new THREE.BoxGeometry(1.5, 0.07, 1.0),
+            new THREE.MeshStandardMaterial({ color: accentColor, emissive: accentColor, emissiveIntensity: 0.8 })
+          );
+          rim.position.set(ix, h * 0.32 + 0.2, 0.08);
+          storeGroup.add(rim);
+
+          [-0.42, 0, 0.42].forEach((sx, idx) => {
+            const sCol = shoeColors[(i * 2 + idx) % shoeColors.length];
+            const shoe = new THREE.Mesh(
+              new THREE.BoxGeometry(0.28, 0.16, 0.54),
+              new THREE.MeshStandardMaterial({ color: sCol, emissive: sCol, emissiveIntensity: 0.2, roughness: 0.35 })
+            );
+            shoe.position.set(ix + sx, h * 0.36 + 0.22, 0.08);
+            storeGroup.add(shoe);
+          });
+        }
+      } else if (interiorType === 'cinema') {
+        const seatRedMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x991b1b, emissiveIntensity: 0.25, roughness: 0.55 });
+        const movieScreenColors = [0x38bdf8, 0xf59e0b, 0xec4899];
+        const numRooms = 3;
+        const roomW = (usableW - 0.6) / numRooms;
+
+        for (let rm = 0; rm < numRooms; rm++) {
+          const roomCenterX = -usableW / 2 + roomW * (rm + 0.5) + 0.3;
+
+          if (rm > 0) {
+            const divWall = new THREE.Mesh(new THREE.BoxGeometry(0.16, h * 0.74, usableD * 0.78), matCutawaySlateWall);
+            divWall.position.set(roomCenterX - roomW / 2, h * 0.37 + 0.15, -0.35);
+            storeGroup.add(divWall);
+          }
+
+          const sCol = movieScreenColors[rm % movieScreenColors.length];
+          const cinemaScreenMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: sCol, emissiveIntensity: 1.05, roughness: 0.15 });
+          const screen = new THREE.Mesh(new THREE.BoxGeometry(roomW * 0.78, h * 0.5, 0.12), cinemaScreenMat);
+          screen.position.set(roomCenterX, h * 0.4, -usableD * 0.38);
+          storeGroup.add(screen);
+
+          for (let row = 0; row < 4; row++) {
+            const seatRow = new THREE.Mesh(new THREE.BoxGeometry(roomW * 0.74, 0.24 + row * 0.08, 0.44), seatRedMat);
+            seatRow.position.set(roomCenterX, 0.28 + row * 0.08, -usableD * 0.12 + row * 0.75);
+            storeGroup.add(seatRow);
+          }
+        }
+        const lobbyBar = new THREE.Mesh(
+          new THREE.BoxGeometry(usableW * 0.68, h * 0.3, 0.6),
+          new THREE.MeshStandardMaterial({ color: 0xdc2626, emissive: 0x7f1d1d, emissiveIntensity: 0.3, roughness: 0.3 })
+        );
+        lobbyBar.position.set(0, h * 0.15 + 0.18, usableD * 0.36);
+        storeGroup.add(lobbyBar);
+      } else if (interiorType === 'books-home') {
+        const shelfCount = w >= 12 ? 4 : 3;
+        const bookColors = [0xef4444, 0x3b82f6, 0xfacc15, 0x10b981, 0xa855f7, 0xf97316];
+        for (let s = 0; s < shelfCount; s++) {
+          const sx = -usableW * 0.34 + (s * usableW * 0.68) / Math.max(1, shelfCount - 1);
+          const gondola = new THREE.Mesh(new THREE.BoxGeometry(0.46, h * 0.46, usableD * 0.6), woodMat);
+          gondola.position.set(sx, h * 0.23 + 0.18, 0);
+          storeGroup.add(gondola);
+
+          const topAccent = new THREE.Mesh(
+            new THREE.BoxGeometry(0.5, 0.09, usableD * 0.6),
+            new THREE.MeshStandardMaterial({ color: accentColor, emissive: accentColor, emissiveIntensity: 0.75, roughness: 0.3 })
+          );
+          topAccent.position.set(sx, h * 0.46 + 0.21, 0);
+          storeGroup.add(topAccent);
+
+          for (let b = -usableD * 0.22; b <= usableD * 0.22; b += 0.55) {
+            const bCol = bookColors[Math.abs(Math.round((sx + b) * 7)) % bookColors.length];
+            const itemBox = new THREE.Mesh(
+              new THREE.BoxGeometry(0.52, 0.22, 0.34),
+              new THREE.MeshStandardMaterial({ color: bCol, roughness: 0.45 })
+            );
+            itemBox.position.set(sx, h * 0.34 + 0.18, b);
+            storeGroup.add(itemBox);
+          }
+        }
+      } else if (interiorType === 'leisure-gym') {
+        if (accentHex === '#0284c7') {
+          const carouselBase = new THREE.Mesh(
+            new THREE.CylinderGeometry(1.45, 1.55, 0.26, 20),
+            new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xca8a04, emissiveIntensity: 0.3, roughness: 0.3 })
+          );
+          carouselBase.position.set(-usableW * 0.2, 0.32, 0);
+          storeGroup.add(carouselBase);
+
+          const carouselTop = new THREE.Mesh(
+            new THREE.ConeGeometry(1.5, 0.8, 20),
+            new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xb91c1c, emissiveIntensity: 0.35, roughness: 0.3 })
+          );
+          carouselTop.position.set(-usableW * 0.2, 1.4, 0);
+          storeGroup.add(carouselTop);
+
+          const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.95, 10), whiteCounterMat);
+          pole.position.set(-usableW * 0.2, 0.82, 0);
+          storeGroup.add(pole);
+
+          const arcadeColors = [0xec4899, 0x22c55e, 0xf97316, 0x38bdf8];
+          arcadeColors.forEach((aCol, idx) => {
+            const cab = new THREE.Mesh(
+              new THREE.BoxGeometry(0.65, 1.15, 0.65),
+              new THREE.MeshStandardMaterial({ color: aCol, emissive: aCol, emissiveIntensity: 0.4, roughness: 0.3 })
+            );
+            cab.position.set(usableW * 0.08 + idx * 0.95, 0.76, -usableD * 0.18);
+            storeGroup.add(cab);
+          });
+        } else if (accentHex === '#7e22ce') {
+          const padColors = [0xa855f7, 0xec4899, 0x06b6d4];
+          const matBed = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.65 });
+          let idx = 0;
+          for (let tx = -usableW * 0.32; tx <= usableW * 0.32; tx += 2.15) {
+            const pCol = padColors[idx % padColors.length];
+            idx++;
+            const padMat = new THREE.MeshStandardMaterial({ color: pCol, emissive: pCol, emissiveIntensity: 0.55 });
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.38, 2.3), padMat);
+            frame.position.set(tx, 0.37, 0);
+            storeGroup.add(frame);
+            const bed = new THREE.Mesh(new THREE.BoxGeometry(1.48, 0.41, 1.85), matBed);
+            bed.position.set(tx, 0.37, 0);
+            storeGroup.add(bed);
+          }
+        } else {
+          const isImmersive = accentHex === '#e879f9' || accentHex === '#38bdf8';
+          if (isImmersive) {
+            const holoCore = new THREE.Mesh(
+              new THREE.OctahedronGeometry(0.65, 1),
+              new THREE.MeshStandardMaterial({ color: accentColor, emissive: accentColor, emissiveIntensity: 1.2 })
+            );
+            holoCore.position.set(0, h * 0.48, 0);
+            storeGroup.add(holoCore);
+          } else {
+            const limeMat = new THREE.MeshStandardMaterial({ color: 0x84cc16, emissive: 0x65a30d, emissiveIntensity: 0.65 });
+            for (let mx = -usableW * 0.36; mx <= usableW * 0.36; mx += 1.55) {
+              const treadmill = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.34, 1.4), darkMetalMat);
+              treadmill.position.set(mx, 0.35, 0.1);
+              storeGroup.add(treadmill);
+
+              const consoleUnit = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.72, 0.24), limeMat);
+              consoleUnit.position.set(mx, 0.58, -0.46);
+              storeGroup.add(consoleUnit);
+            }
+          }
+        }
+      } else if (interiorType === 'beauty-jewelry') {
+        const caseMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, emissive: accentColor, emissiveIntensity: 0.55, roughness: 0.18 });
+        const island = new THREE.Mesh(new THREE.BoxGeometry(usableW * 0.6, h * 0.34, usableD * 0.46), caseMat);
+        island.position.set(0, h * 0.17 + 0.18, 0.05);
+        storeGroup.add(island);
+      } else if (interiorType === 'dining') {
+        const kitchenBar = new THREE.Mesh(new THREE.BoxGeometry(usableW * 0.76, h * 0.35, 0.48), whiteCounterMat);
+        kitchenBar.position.set(0, h * 0.175 + 0.18, -usableD * 0.26);
+        storeGroup.add(kitchenBar);
+
+        const hood = new THREE.Mesh(
+          new THREE.BoxGeometry(usableW * 0.64, 0.22, 0.42),
+          new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.85, roughness: 0.22 })
+        );
+        hood.position.set(0, h * 0.78, -usableD * 0.34);
+        storeGroup.add(hood);
+
+        if (usableD >= 3.2) {
+          const tableCols = Math.min(3, Math.max(1, Math.floor(usableW / 2.2)));
+          for (let t = 0; t < tableCols; t++) {
+            const tx = tableCols === 1 ? 0 : (-usableW * 0.28 + (t * usableW * 0.56) / (tableCols - 1));
+            const table = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.34, 0.68), woodMat);
+            table.position.set(tx, 0.35, usableD * 0.22);
+            storeGroup.add(table);
+          }
+        }
+      }
+    }
+
+    function createFloatingPin3D(parentGroup, targetHitMesh, heightOffset = 4.6, pinScale = 3.2) {
+      const pinSpriteMat = new THREE.SpriteMaterial({ map: pinTargetTex, transparent: true, depthTest: true });
+      const pinSprite = new THREE.Sprite(pinSpriteMat);
+      const pos = targetHitMesh.parent.position;
+      pinSprite.position.set(pos.x, heightOffset, pos.z);
+      pinSprite.scale.set(pinScale, pinScale, 1);
+      pinSprite.visible = false;
+
+      pinSprite.userData = {
+        ...targetHitMesh.userData,
+        isPin: true,
+        linkedHitMesh: targetHitMesh,
+        baseY: heightOffset,
+        baseScale: pinScale,
+        phase: Math.random() * Math.PI * 2
+      };
+
+      parentGroup.add(pinSprite);
+      floatingPins.push(pinSprite);
+      interactiveMeshes.push(pinSprite);
+      return pinSprite;
+    }
+
+    function createCutawayStoreUnit(parentGroup, config) {
+      const {
+        name, floorLabel, category, areaText, description,
+        x, z, w, d, h = 2.6, rotY = 0,
+        bgHex = '#f5e8d3', textHex = '#2b2118', accentHex = '#d9a441',
+        badgeShape = 'none', frontSide = 'south',
+        interiorType = 'fashion',
+        hasPin = false, pinScale = 3.2
+      } = config;
+
+      const storeGroup = new THREE.Group();
+      storeGroup.position.set(x, 0, z);
+      storeGroup.rotation.y = rotY;
+
+      const floorTex = createStoreTopEmblemTexture(name.split('\n')[0], bgHex, textHex, accentHex, badgeShape, interiorType);
+      const floorMat = new THREE.MeshStandardMaterial({
+        map: floorTex,
+        emissiveMap: floorTex,
+        emissive: new THREE.Color(0xffffff),
+        emissiveIntensity: 0.54,
+        roughness: 0.34,
+        metalness: 0.06
+      });
+
+      const floorGeo = new THREE.BoxGeometry(Math.max(0.25, w - 0.08), 0.24, Math.max(0.25, d - 0.08));
+      const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+      floorMesh.position.y = 0.12;
+      floorMesh.receiveShadow = true;
+      storeGroup.add(floorMesh);
+
+      const t = Math.min(0.2, Math.min(w, d) * 0.12);
+      const innerTintColor = new THREE.Color(bgHex).lerp(new THREE.Color(0xffffff), 0.22);
+      const innerWallMat = new THREE.MeshStandardMaterial({
+        color: innerTintColor,
+        emissive: new THREE.Color(bgHex),
+        emissiveIntensity: 0.18,
+        roughness: 0.42,
+        metalness: 0.08
+      });
+      const brandLedTrimMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(accentHex),
+        emissive: new THREE.Color(accentHex),
+        emissiveIntensity: 0.72,
+        roughness: 0.25,
+        metalness: 0.55
+      });
+
+      const makeWall = (ww, wh, wd, px, py, pz, sideName) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(ww, wh, wd), matCutawaySlateWall);
+        m.position.set(px, py, pz);
+        m.castShadow = true;
+        m.receiveShadow = true;
+        storeGroup.add(m);
+        wallMeshes.push(m);
+
+        const linerW = (sideName === 'north' || sideName === 'south') ? Math.max(0.1, ww - t * 1.4) : 0.04;
+        const linerD = (sideName === 'east' || sideName === 'west') ? Math.max(0.1, wd - t * 1.4) : 0.04;
+        const lx = sideName === 'west' ? px + t / 2 + 0.02 : (sideName === 'east' ? px - t / 2 - 0.02 : px);
+        const lz = sideName === 'north' ? pz + t / 2 + 0.02 : (sideName === 'south' ? pz - t / 2 - 0.02 : pz);
+        const innerLiner = new THREE.Mesh(new THREE.BoxGeometry(linerW, wh * 0.92, linerD), innerWallMat);
+        innerLiner.position.set(lx, py, lz);
+        storeGroup.add(innerLiner);
+        wallMeshes.push(innerLiner);
+
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(ww + 0.02, 0.08, wd + 0.02), matGoldTrim);
+        trim.position.set(px, py + wh / 2 + 0.04, pz);
+        storeGroup.add(trim);
+        wallMeshes.push(trim);
+
+        const coveLed = new THREE.Mesh(new THREE.BoxGeometry(linerW, 0.07, linerD), brandLedTrimMat);
+        coveLed.position.set(lx, py + wh * 0.42, lz);
+        storeGroup.add(coveLed);
+        wallMeshes.push(coveLed);
+      };
+
+      if (frontSide !== 'north') makeWall(w, h, t, 0, h / 2, -d / 2 + t / 2, 'north');
+      if (frontSide !== 'south') makeWall(w, h, t, 0, h / 2, d / 2 - t / 2, 'south');
+      if (frontSide !== 'west')  makeWall(t, h, d, -w / 2 + t / 2, h / 2, 0, 'west');
+      if (frontSide !== 'east')  makeWall(t, h, d, w / 2 - t / 2, h / 2, 0, 'east');
+
+      if (frontSide !== 'none') {
+        const glassW = (frontSide === 'north' || frontSide === 'south') ? Math.max(0.1, w - t * 2) : 0.06;
+        const glassD = (frontSide === 'east' || frontSide === 'west') ? Math.max(0.1, d - t * 2) : 0.06;
+        const glassMesh = new THREE.Mesh(new THREE.BoxGeometry(glassW, h * 0.85, glassD), matGlassStorefront);
+        const gx = frontSide === 'east' ? w / 2 - 0.08 : (frontSide === 'west' ? -w / 2 + 0.08 : 0);
+        const gz = frontSide === 'south' ? d / 2 - 0.08 : (frontSide === 'north' ? -d / 2 + 0.08 : 0);
+        glassMesh.position.set(gx, h * 0.425, gz);
+        storeGroup.add(glassMesh);
+        wallMeshes.push(glassMesh);
+
+        const sill = new THREE.Mesh(new THREE.BoxGeometry(glassW + 0.04, 0.14, glassD + 0.04), brandLedTrimMat);
+        sill.position.set(gx, 0.16, gz);
+        storeGroup.add(sill);
+        wallMeshes.push(sill);
+
+        const signW = (frontSide === 'north' || frontSide === 'south') ? Math.min(w * 0.86, 6.4) : 0.16;
+        const signD = (frontSide === 'east' || frontSide === 'west') ? Math.min(d * 0.86, 6.4) : 0.16;
+        const signTex = createStoreFasciaSignTexture(name.split('\n')[0], bgHex, textHex, accentHex);
+        const signMat = new THREE.MeshStandardMaterial({
+          map: signTex,
+          emissiveMap: signTex,
+          emissive: new THREE.Color(0xffffff),
+          emissiveIntensity: 0.72,
+          roughness: 0.22
+        });
+        const signBoard = new THREE.Mesh(new THREE.BoxGeometry(signW, Math.min(0.48, h * 0.25), signD), signMat);
+        signBoard.position.set(gx, h * 0.92, gz);
+        storeGroup.add(signBoard);
+        wallMeshes.push(signBoard);
+      }
+
+      if (interiorType !== 'none') {
+        buildStoreInterior3D(storeGroup, interiorType, w, d, h, accentHex);
+      }
+
+      const hitMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, d),
+        new THREE.MeshBasicMaterial({ visible: false })
+      );
+      hitMesh.position.y = h / 2;
+      hitMesh.userData = {
+        selectable: true,
+        name,
+        floorLabel,
+        category,
+        areaText,
+        description,
+        storeDims: { w, d, h },
+        highlightMesh: floorMesh,
+        baseEmissive: new THREE.Color(0xffffff),
+        baseEmissiveIntensity: 0.54
+      };
+      storeGroup.add(hitMesh);
+      interactiveMeshes.push(hitMesh);
+      searchableItems.push(hitMesh);
+
+      parentGroup.add(storeGroup);
+
+      if (hasPin) {
+        createFloatingPin3D(parentGroup, hitMesh, h + 1.6, pinScale);
+      }
+
+      return storeGroup;
+    }
+
+    function createTree(parentGroup, x, y, z, scale = 1) {
+      const g = new THREE.Group();
+      g.position.set(x, y, z);
+      g.scale.setScalar(scale);
+
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.14, 0.22, 1.3, 8),
+        new THREE.MeshStandardMaterial({ color: 0x6b4b2e, roughness: 0.85 })
+      );
+      trunk.position.y = 0.65;
+      g.add(trunk);
+
+      const crown1 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.95, 1), matGreenFoliage);
+      crown1.position.y = 1.65;
+      crown1.castShadow = true;
+      g.add(crown1);
+
+      const crown2 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.68, 1), new THREE.MeshStandardMaterial({ color: 0x6eb050, roughness: 0.65 }));
+      crown2.position.set(0.35, 2.05, 0.2);
+      g.add(crown2);
+
+      parentGroup.add(g);
+    }
+
+    function createMiniatureCar(parentGroup, x, y, z, rotY = 0, colorHex = 0xd8dee9) {
+      const car = new THREE.Group();
+      car.position.set(x, y, z);
+      car.rotation.y = rotY;
+
+      const bodyMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.28, metalness: 0.5 });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.42, 2.2), bodyMat);
+      body.position.y = 0.28;
+      body.castShadow = true;
+      car.add(body);
+
+      const cabin = new THREE.Mesh(
+        new THREE.BoxGeometry(0.96, 0.34, 1.15),
+        new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.15, metalness: 0.8 })
+      );
+      cabin.position.set(0, 0.62, -0.08);
+      car.add(cabin);
+
+      parentGroup.add(car);
+    }
+
+    function createEscalatorUnit(parentGroup, x, y, z, length = 7.5, height = 3.2, rotY = 0, label = 'Escada Rolante', hasPin = false, pinScale = 2.4) {
+      const esc = new THREE.Group();
+      esc.position.set(x, y, z);
+      esc.rotation.y = rotY;
+
+      const angle = Math.atan2(height, length);
+      const hyp = Math.hypot(length, height);
+
+      const frameMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.35, metalness: 0.72 });
+      const stepMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.4, metalness: 0.6 });
+
+      const baseRamp = new THREE.Mesh(new THREE.BoxGeometry(hyp, 0.32, 0.75), stepMat);
+      baseRamp.position.set(0, height / 2, 0);
+      baseRamp.rotation.z = angle;
+      esc.add(baseRamp);
+
+      [-0.36, 0.36].forEach((offsetZ) => {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(hyp + 0.2, 0.48, 0.07), frameMat);
+        rail.position.set(0, height / 2 + 0.24, offsetZ);
+        rail.rotation.z = angle;
+        esc.add(rail);
+
+        const glass = new THREE.Mesh(new THREE.BoxGeometry(hyp, 0.32, 0.03), matGlassStorefront);
+        glass.position.set(0, height / 2 + 0.16, offsetZ);
+        glass.rotation.z = angle;
+        esc.add(glass);
+      });
+
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(length, height + 0.8, 1.0), new THREE.MeshBasicMaterial({ visible: false }));
+      hit.position.y = height / 2;
+      hit.userData = {
+        selectable: true,
+        name: label,
+        floorLabel: '2º Pavimento — Circulação Vertical',
+        category: 'Equipamento de Mobilidade',
+        areaText: 'Conforme planta',
+        description: 'Escadas rolantes paralelas do Deck Leste interligando o corredor central do 1º Pavimento à Praça de Alimentação.',
+        storeDims: { w: length, d: 2.5, h: height },
+        highlightMesh: baseRamp,
+        baseEmissive: new THREE.Color(0x000000),
+        baseEmissiveIntensity: 0
+      };
+      esc.add(hit);
+      interactiveMeshes.push(hit);
+      searchableItems.push(hit);
+      parentGroup.add(esc);
+
+      if (hasPin) createFloatingPin3D(parentGroup, hit, 2.8, pinScale);
+    }
+
+    // ============================================================================
+    // 6. BASE MONUMENTAL, PLINTO E ESTRUTURA DO SHOPPING
+    // ============================================================================
+    const maquetteRoot = new THREE.Group();
+    scene.add(maquetteRoot);
+
+    const PLINTH_W = 132;
+    const PLINTH_D = 76;
+    const PLINTH_H = 5.4;
+
+    const plinthMesh = new THREE.Mesh(new THREE.BoxGeometry(PLINTH_W, PLINTH_H, PLINTH_D), matPlinthObsidian);
+    plinthMesh.position.set(0, -PLINTH_H / 2, 0);
+    plinthMesh.receiveShadow = true;
+    maquetteRoot.add(plinthMesh);
+
+    const plinthTop = new THREE.Mesh(new THREE.BoxGeometry(PLINTH_W - 0.5, 0.3, PLINTH_D - 0.5), matPlinthTopDeck);
+    plinthTop.position.set(0, 0.15, 0);
+    plinthTop.receiveShadow = true;
+    maquetteRoot.add(plinthTop);
+
+    const borderT = 0.26;
+    const borderN = new THREE.Mesh(new THREE.BoxGeometry(PLINTH_W + 0.1, borderT, borderT), matGoldEdge);
+    borderN.position.set(0, 0.26, -PLINTH_D / 2);
+    const borderS = new THREE.Mesh(new THREE.BoxGeometry(PLINTH_W + 0.1, borderT, borderT), matGoldEdge);
+    borderS.position.set(0, 0.26, PLINTH_D / 2);
+    const borderW = new THREE.Mesh(new THREE.BoxGeometry(borderT, borderT, PLINTH_D + 0.1), matGoldEdge);
+    borderW.position.set(-PLINTH_W / 2, 0.26, 0);
+    const borderE = new THREE.Mesh(new THREE.BoxGeometry(borderT, borderT, PLINTH_D + 0.1), matGoldEdge);
+    borderE.position.set(PLINTH_W / 2, 0.26, 0);
+    maquetteRoot.add(borderN, borderS, borderW, borderE);
+
+    const cyanNeonStripMat = new THREE.MeshBasicMaterial({ color: CYAN_HEX });
+    (function buildPlinthCyberNeon() {
+      const sy = -PLINTH_H + 0.35;
+      const addStrip = (w, h, d, x, y, z) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), cyanNeonStripMat);
+        m.position.set(x, y, z);
+        maquetteRoot.add(m);
+      };
+      addStrip(PLINTH_W + 0.2, 0.16, 0.16, 0, sy, PLINTH_D / 2 + 0.05);
+      addStrip(PLINTH_W + 0.2, 0.16, 0.16, 0, sy, -PLINTH_D / 2 - 0.05);
+      addStrip(0.16, 0.16, PLINTH_D + 0.2, PLINTH_W / 2 + 0.05, sy, 0);
+      addStrip(0.16, 0.16, PLINTH_D + 0.2, -PLINTH_W / 2 - 0.05, sy, 0);
+      [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz]) => {
+        addStrip(0.16, PLINTH_H - 0.4, 0.16, sx * (PLINTH_W / 2 + 0.05), -PLINTH_H / 2 + 0.1, sz * (PLINTH_D / 2 + 0.05));
+      });
+    })();
+
+    const logoTex = createPlinthLogoTexture();
+    const logoPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(34, 6.2),
+      new THREE.MeshStandardMaterial({
+        map: logoTex,
+        emissiveMap: logoTex,
+        emissive: 0xffd269,
+        emissiveIntensity: 0.75,
+        transparent: true,
+        roughness: 0.3,
+        metalness: 0.65
+      })
+    );
+    logoPlane.position.set(0, -PLINTH_H / 2 + 0.1, PLINTH_D / 2 + 0.08);
+    maquetteRoot.add(logoPlane);
+
+    // Entorno Viário (Av. JK, NS-05 e LO-2A)
+    const roadGroup = new THREE.Group();
+    roadGroup.position.y = -5.41;
+    maquetteRoot.add(roadGroup);
+
+    const roadSouth = new THREE.Mesh(new THREE.PlaneGeometry(164, 7.5), matAvenueRoad);
+    roadSouth.rotation.x = -Math.PI / 2;
+    roadSouth.position.set(0, 0, PLINTH_D / 2 + 6.5);
+    roadGroup.add(roadSouth);
+
+    const roadWest = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 96), matAvenueRoad);
+    roadWest.rotation.x = -Math.PI / 2;
+    roadWest.position.set(-PLINTH_W / 2 - 6.5, 0, -2);
+    roadGroup.add(roadWest);
+
+    const roadEast = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 96), matAvenueRoad);
+    roadEast.rotation.x = -Math.PI / 2;
+    roadEast.position.set(PLINTH_W / 2 + 6.5, 0, -2);
+    roadGroup.add(roadEast);
+
+    // ============================================================================
+    // 7. 1º PAVIMENTO (TÉRREO) - TODAS AS LOJAS COM INTERIOR 3D
+    // ============================================================================
+    const floor1Group = new THREE.Group();
+    const FLOOR1_Y = 0.35;
+    floor1Group.position.y = FLOOR1_Y;
+    maquetteRoot.add(floor1Group);
+
+    const parkingNorth = new THREE.Mesh(new THREE.BoxGeometry(82, 0.22, 24), matAsphalt);
+    parkingNorth.position.set(-12, 0.11, -22);
+    parkingNorth.receiveShadow = true;
+    floor1Group.add(parkingNorth);
+
+    const parkingSouth = new THREE.Mesh(new THREE.BoxGeometry(88, 0.22, 13), matAsphalt);
+    parkingSouth.position.set(-8, 0.11, 28);
+    parkingSouth.receiveShadow = true;
+    floor1Group.add(parkingSouth);
+
+    const carColors = [0xe2e8f0, 0x334155, 0x94a3b8, 0x3b82f6, 0xdc2626, 0xf8fafc, 0x64748b];
+    for (let cx = -42; cx <= 20; cx += 6.5) {
+      createMiniatureCar(floor1Group, cx, 0.22, -26.5, 0, carColors[Math.abs(Math.round(cx)) % carColors.length]);
+      if (Math.abs(cx + 8) > 9) createMiniatureCar(floor1Group, cx, 0.22, -16.5, Math.PI, carColors[Math.abs(Math.round(cx * 3)) % carColors.length]);
+    }
+    for (let cx = -44; cx <= 30; cx += 7.5) {
+      if (Math.abs(cx + 6) > 8) createMiniatureCar(floor1Group, cx, 0.22, 29.2, 0, carColors[Math.abs(Math.round(cx * 2)) % carColors.length]);
+    }
+
+    const mallShape = new THREE.Shape();
+    mallShape.moveTo(-48, -6);
+    mallShape.absarc(-45, 5, 16, Math.PI * 0.65, Math.PI * 1.48, false);
+    mallShape.lineTo(42, 21.5);
+    mallShape.lineTo(54, 21.5);
+    mallShape.lineTo(56, -32);
+    mallShape.lineTo(24, -27);
+    mallShape.lineTo(24, -13);
+    mallShape.lineTo(-18, -13);
+    mallShape.lineTo(-48, -6);
+
+    const mallFloorGeo = new THREE.ExtrudeGeometry(mallShape, {
+      depth: 0.42,
+      bevelEnabled: true,
+      bevelThickness: 0.08,
+      bevelSize: 0.12,
+      bevelSegments: 2
+    });
+    mallFloorGeo.rotateX(Math.PI / 2);
+    const mallFloorMesh = new THREE.Mesh(mallFloorGeo, matCorridorMarble);
+    mallFloorMesh.position.y = 0.44;
+    mallFloorMesh.receiveShadow = true;
+    floor1Group.add(mallFloorMesh);
+
+    const f1Edges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(mallFloorGeo),
+      new THREE.LineBasicMaterial({ color: 0xffcf56 })
+    );
+    f1Edges.position.y = 0.46;
+    floor1Group.add(f1Edges);
+
+    const centralPlaza = new THREE.Mesh(
+      new THREE.CylinderGeometry(4.2, 4.4, 0.55, 32),
+      new THREE.MeshStandardMaterial({ color: 0x6b8e4e, roughness: 0.7 })
+    );
+    centralPlaza.position.set(-7.5, 0.55, 8.2);
+    floor1Group.add(centralPlaza);
+
+    const centralGoldRing = new THREE.Mesh(new THREE.TorusGeometry(4.35, 0.14, 12, 40), matGoldEdge);
+    centralGoldRing.rotation.x = Math.PI / 2;
+    centralGoldRing.position.set(-7.5, 0.85, 8.2);
+    floor1Group.add(centralGoldRing);
+
+    createTree(floor1Group, -7.5, 0.8, 8.2, 1.15);
+    createTree(floor1Group, -9.1, 0.8, 7.6, 0.82);
+    createTree(floor1Group, -6.0, 0.8, 8.8, 0.82);
+
+    const plazaHit = new THREE.Mesh(new THREE.CylinderGeometry(4.4, 4.4, 2.2, 24), new THREE.MeshBasicMaterial({ visible: false }));
+    plazaHit.position.set(-7.5, 1.3, 8.2);
+    plazaHit.userData = {
+      selectable: true,
+      name: 'Praça de Eventos Central',
+      floorLabel: '1º Pavimento — Térreo',
+      category: 'Convivência & Eventos',
+      areaText: '485,80 m²',
+      description: 'Praça de eventos paisagística no encontro das alamedas principais do 1º Pavimento.',
+      storeDims: { w: 8.8, d: 8.8, h: 2.5 },
+      highlightMesh: centralPlaza,
+      baseEmissive: new THREE.Color(0x000000),
+      baseEmissiveIntensity: 0
+    };
+    floor1Group.add(plazaHit);
+    interactiveMeshes.push(plazaHit);
+    searchableItems.push(plazaHit);
+    createFloatingPin3D(floor1Group, plazaHit, 4.8, 3.4);
+
+    const storesFloor1 = [
+      { name: 'RENNER', floorLabel: '1º Pavimento — Térreo', category: 'Loja Âncora • Moda', areaText: 'Conforme planta', description: 'Loja âncora no extremo oeste com fachada curva.', x: -45.5, z: 5.5, w: 12.5, d: 13.5, bgHex: '#f8e7e7', textHex: '#b91c1c', accentHex: '#dc2626', badgeShape: 'circle-red', frontSide: 'east', interiorType: 'fashion', hasPin: true },
+      { name: 'CENTAURO', floorLabel: '1º Pavimento — Térreo', category: 'Loja Âncora • Esportes', areaText: 'Conforme planta', description: 'Mega loja de artigos esportivos.', x: -29.5, z: 17.8, w: 13.5, d: 6.2, bgHex: '#dc2626', textHex: '#ffffff', accentHex: '#fca5a5', frontSide: 'north', interiorType: 'sports-shoes', hasPin: true },
+      { name: 'STILO A', floorLabel: '1º Pavimento — Térreo', category: 'Megalojas • Vestuário', areaText: 'Conforme planta', description: 'Loja de moda feminina e masculina.', x: -26.5, z: 6.2, w: 10.5, d: 7.4, bgHex: '#334155', textHex: '#f8fafc', accentHex: '#f59e0b', frontSide: 'east', interiorType: 'fashion' },
+      { name: 'RI HAPPY', floorLabel: '1º Pavimento — Térreo', category: 'Brinquedos', areaText: 'Conforme planta', description: 'Loja especializada em brinquedos.', x: -34.2, z: 6.2, w: 4.6, d: 7.4, bgHex: '#facc15', textHex: '#b91c1c', accentHex: '#ef4444', frontSide: 'east', interiorType: 'books-home' },
+      { name: 'POLO WEAR', floorLabel: '1º Pavimento — Térreo', category: 'Vestuário Masculino', areaText: 'Conforme planta', description: 'Loja de moda casual.', x: -37.2, z: -4.8, w: 9.2, d: 5.8, bgHex: '#1e3a8a', textHex: '#ffffff', accentHex: '#93c5fd', frontSide: 'south', interiorType: 'fashion' },
+      { name: 'YOUCOM', floorLabel: '1º Pavimento — Térreo', category: 'Moda Jovem', areaText: 'Conforme planta', description: 'Operação de moda jovem.', x: -24.5, z: -5.2, w: 5.5, d: 5.2, bgHex: '#27272a', textHex: '#ffffff', accentHex: '#a1a1aa', frontSide: 'south', interiorType: 'fashion' },
+      { name: 'O BOTICÁRIO', floorLabel: '1º Pavimento — Térreo', category: 'Perfumaria & Cosméticos', areaText: 'Conforme planta', description: 'Perfumaria e cosméticos.', x: -32.5, z: 12.2, w: 4.5, d: 3.4, bgHex: '#15803d', textHex: '#ffffff', accentHex: '#86efac', frontSide: 'north', interiorType: 'beauty-jewelry' },
+      { name: 'AREZZO', floorLabel: '1º Pavimento — Térreo', category: 'Calçados & Bolsas', areaText: 'Conforme planta', description: 'Loja de calçados femininos.', x: -20.5, z: 16.5, w: 4.2, d: 5.4, bgHex: '#785a46', textHex: '#fef3c7', accentHex: '#e7d7c1', frontSide: 'north', interiorType: 'sports-shoes' },
+      { name: 'C&A', floorLabel: '1º Pavimento — Térreo', category: 'Loja Âncora • Departamento', areaText: 'Conforme planta', description: 'Grande loja âncora central.', x: -7.5, z: -12.5, w: 17.5, d: 9.8, bgHex: '#dbeafe', textHex: '#1e3a8a', accentHex: '#2563eb', badgeShape: 'ca-oval', frontSide: 'south', interiorType: 'fashion', hasPin: true },
+      { name: 'RCHLO\nRIACHUELO', floorLabel: '1º Pavimento — Térreo', category: 'Loja Âncora • Departamento', areaText: 'Conforme planta', description: 'Loja âncora central.', x: -7.5, z: 0.4, w: 14.5, d: 7.8, bgHex: '#1e293b', textHex: '#f8fafc', accentHex: '#f59e0b', frontSide: 'south', interiorType: 'fashion', hasPin: true },
+      { name: 'LEITURA', floorLabel: '1º Pavimento — Térreo', category: 'Livraria & Papelaria', areaText: 'Conforme planta', description: 'Megalivraria.', x: 6.8, z: -5.4, w: 7.6, d: 5.2, bgHex: '#1d4ed8', textHex: '#fde047', accentHex: '#facc15', frontSide: 'south', interiorType: 'books-home' },
+      { name: 'BROOKSFIELD', floorLabel: '1º Pavimento — Térreo', category: 'Moda Social', areaText: 'Conforme planta', description: 'Alfaiataria e moda masculina.', x: 6.4, z: 1.5, w: 6.6, d: 4.5, bgHex: '#172554', textHex: '#f8fafc', accentHex: '#cbd5e1', frontSide: 'west', interiorType: 'fashion' },
+      { name: 'CAMICADO', floorLabel: '1º Pavimento — Térreo', category: 'Casa & Decoração', areaText: 'Conforme planta', description: 'Casa e decoração.', x: -14.8, z: 16.2, w: 6.4, d: 6.2, bgHex: '#9f1239', textHex: '#ffffff', accentHex: '#fda4af', frontSide: 'north', interiorType: 'books-home' },
+      { name: 'VIVARA', floorLabel: '1º Pavimento — Térreo', category: 'Joalheria', areaText: 'Conforme planta', description: 'Joalheria.', x: -7.5, z: 13.4, w: 5.4, d: 2.8, bgHex: '#292524', textHex: '#fef3c7', accentHex: '#f59e0b', frontSide: 'north', interiorType: 'beauty-jewelry' },
+      { name: 'OUTBACK', floorLabel: '1º Pavimento — Térreo', category: 'Restaurante', areaText: 'Conforme planta', description: 'Restaurante temático.', x: -4.2, z: 17.5, w: 8.6, d: 5.4, bgHex: '#991b1b', textHex: '#fef2f2', accentHex: '#f87171', frontSide: 'north', interiorType: 'dining' },
+      { name: 'MADERO', floorLabel: '1º Pavimento — Térreo', category: 'Restaurante', areaText: 'Conforme planta', description: 'Restaurante especializado.', x: 4.8, z: 17.5, w: 6.2, d: 5.6, bgHex: '#4a2a16', textHex: '#fde68a', accentHex: '#d97706', frontSide: 'north', interiorType: 'dining' },
+      { name: 'MARISA', floorLabel: '1º Pavimento — Térreo', category: 'Loja Âncora • Moda', areaText: 'Conforme planta', description: 'Loja âncora.', x: 15.8, z: 17.5, w: 14.5, d: 5.8, bgHex: '#db2777', textHex: '#ffffff', accentHex: '#f9a8d4', frontSide: 'north', interiorType: 'fashion' },
+      { name: 'HERING', floorLabel: '1º Pavimento — Térreo', category: 'Vestuário', areaText: 'Conforme planta', description: 'Vestuário básico.', x: 12.2, z: 8.6, w: 5.6, d: 4.4, bgHex: '#1e40af', textHex: '#ffffff', accentHex: '#93c5fd', frontSide: 'west', interiorType: 'fashion' },
+      { name: 'LADY&LORD', floorLabel: '1º Pavimento — Térreo', category: 'Beleza & Estética', areaText: 'Conforme planta', description: 'Salão de beleza.', x: 19.5, z: 5.5, w: 5.6, d: 4.2, bgHex: '#3f3f46', textHex: '#f3e8ff', accentHex: '#c084fc', frontSide: 'west', interiorType: 'beauty-jewelry' },
+      { name: 'BURGER KING', floorLabel: '1º Pavimento — Térreo', category: 'Fast Food', areaText: 'Conforme planta', description: 'Fast food.', x: 26.8, z: 2.2, w: 5.2, d: 4.0, bgHex: '#ea580c', textHex: '#fef08a', accentHex: '#facc15', frontSide: 'west', interiorType: 'dining' },
+      { name: 'CINEMARK', floorLabel: '1º Pavimento — Térreo', category: 'Entretenimento • Salas', areaText: 'Conforme planta', description: 'Complexo de cinema 3D.', x: 37.8, z: 14.5, w: 16.5, d: 11.8, bgHex: '#cbd5e1', textHex: '#991b1b', accentHex: '#dc2626', badgeShape: 'cinemark', frontSide: 'west', interiorType: 'cinema', hasPin: true },
+      { name: 'STZ\nSTUDIO Z', floorLabel: '1º Pavimento — Térreo', category: 'Loja Âncora • Calçados', areaText: 'Conforme planta', description: 'Megalojas de calçados.', x: 37.8, z: 1.5, w: 16.5, d: 5.6, bgHex: '#f97316', textHex: '#ffffff', accentHex: '#fed7aa', frontSide: 'west', interiorType: 'sports-shoes' },
+      { name: 'NACIONAL\nVARIEDADES', floorLabel: '1º Pavimento — Térreo', category: 'Utilidades & Variedades', areaText: 'Conforme planta', description: 'Variedades.', x: 37.8, z: -3.6, w: 16.5, d: 4.0, bgHex: '#b45309', textHex: '#fef3c7', accentHex: '#fbbf24', frontSide: 'west', interiorType: 'books-home' },
+      { name: 'PERNAMBUCANAS', floorLabel: '1º Pavimento — Térreo', category: 'Loja Âncora • Departamento', areaText: 'Conforme planta', description: 'Loja âncora.', x: 37.8, z: -8.2, w: 16.5, d: 4.8, bgHex: '#facc15', textHex: '#1e3a8a', accentHex: '#1d4ed8', frontSide: 'west', interiorType: 'fashion' },
+      { name: 'BIG LAR', floorLabel: '1º Pavimento — Térreo', category: 'Utilidades Domésticas', areaText: 'Conforme planta', description: 'Artigos para o lar.', x: 37.8, z: -13.4, w: 16.5, d: 5.0, bgHex: '#dc2626', textHex: '#fef08a', accentHex: '#facc15', frontSide: 'west', interiorType: 'books-home' },
+      { name: 'ZIG ZAG\nPLAY', floorLabel: '1º Pavimento — Térreo', category: 'Entretenimento Infantil', areaText: 'Conforme planta', description: 'Parque indoor com carrossel 3D.', x: 37.8, z: -18.8, w: 16.5, d: 5.2, bgHex: '#0284c7', textHex: '#fef08a', accentHex: '#facc15', frontSide: 'west', interiorType: 'leisure-gym', hasPin: true },
+      { name: 'BIG', floorLabel: '1º Pavimento — Térreo', category: 'Varejo', areaText: 'Conforme planta', description: 'Varejo.', x: 37.8, z: -23.4, w: 16.5, d: 3.6, bgHex: '#991b1b', textHex: '#fee2e2', accentHex: '#ef4444', frontSide: 'west', interiorType: 'books-home' },
+      { name: 'WOW PARK', floorLabel: '1º Pavimento — Térreo', category: 'Parque Trampolim & Lazer', areaText: 'Conforme planta', description: 'Arena de trampolins.', x: 37.8, z: -27.8, w: 16.5, d: 4.8, bgHex: '#7e22ce', textHex: '#fef08a', accentHex: '#c084fc', frontSide: 'west', interiorType: 'leisure-gym' },
+      { name: 'MOROFIT', floorLabel: '1º Pavimento — Térreo', category: 'Academia & Bem-Estar', areaText: 'Conforme planta', description: 'Academia.', x: 37.8, z: -32.2, w: 16.5, d: 3.6, bgHex: '#27272a', textHex: '#a3e635', accentHex: '#84cc16', frontSide: 'south', interiorType: 'leisure-gym' }
+    ];
+
+    storesFloor1.forEach((st) => createCutawayStoreUnit(floor1Group, st));
+
+    const kiosksF1 = [
+      { name: 'Quiosque Café & Gelato', x: -16.5, z: 6.2, w: 2.2, d: 1.8, color: 0xd97706 },
+      { name: 'Quiosque Acessórios & Celulares', x: 1.5, z: 8.2, w: 2.2, d: 1.8, color: 0x0284c7 },
+      { name: 'Quiosque Doces & Chocolates', x: 14.5, z: 12.2, w: 2.2, d: 1.8, color: 0xdb2777 },
+      { name: 'Quiosque Ótica & Relógios', x: -23.5, z: 11.5, w: 2.0, d: 1.6, color: 0x2563eb }
+    ];
+    kiosksF1.forEach((kq) => {
+      const kMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(kq.w, 1.15, kq.d),
+        new THREE.MeshStandardMaterial({ color: kq.color, emissive: kq.color, emissiveIntensity: 0.35, roughness: 0.32, metalness: 0.2 })
+      );
+      kMesh.position.set(kq.x, 0.95, kq.z);
+      kMesh.castShadow = true;
+      kMesh.userData = {
+        selectable: true,
+        name: kq.name,
+        floorLabel: '1º Pavimento — Térreo',
+        category: 'Quiosque de Corredor',
+        areaText: 'Conforme planta',
+        description: 'Ilha comercial localizada na circulação principal.',
+        storeDims: { w: kq.w, d: kq.d, h: 1.5 },
+        highlightMesh: kMesh,
+        baseEmissive: new THREE.Color(kq.color),
+        baseEmissiveIntensity: 0.35
+      };
+      floor1Group.add(kMesh);
+      interactiveMeshes.push(kMesh);
+      searchableItems.push(kMesh);
+    });
+
+    const exteriorTrees = [
+      [-51, -4], [-49, -11], [-45, -16], [-39, -20], [-28, -22], [18, -22], [25, -24],
+      [-50, 14], [-44, 22], [-34, 24], [-18, 24], [-11, 23], [-3, 23], [12, 24], [26, 24], [47, 23]
+    ];
+    exteriorTrees.forEach(([tx, tz]) => createTree(floor1Group, tx, 0.25, tz, 0.95));
+
+    // ============================================================================
+    // 8. 2º PAVIMENTO (PRAÇA DE ALIMENTAÇÃO)
+    // ============================================================================
+    const floor2Group = new THREE.Group();
+    const FLOOR2_BASE_Y = 3.25;
+    const FLOOR2_EXPLODED_Y = 13.8;
+
+    floor2Group.position.y = FLOOR2_EXPLODED_Y;
+    maquetteRoot.add(floor2Group);
+
+    const f2Shape = new THREE.Shape();
+    f2Shape.moveTo(-48.5, -5.5);
+    f2Shape.quadraticCurveTo(-53.2, 4.5, -48.0, 14.8);
+    f2Shape.lineTo(-40.5, 17.5);
+    f2Shape.lineTo(-39.5, 13.8);
+    f2Shape.lineTo(-24.2, 13.8);
+    f2Shape.lineTo(-23.2, 10.6);
+    f2Shape.quadraticCurveTo(-17.0, 8.8, -13.6, 4.5);
+    f2Shape.quadraticCurveTo(-17.0, 0.2, -23.2, -1.6);
+    f2Shape.lineTo(-24.2, -6.4);
+    f2Shape.lineTo(-39.5, -6.4);
+    f2Shape.lineTo(-40.5, -8.5);
+    f2Shape.quadraticCurveTo(-45.5, -7.2, -48.5, -5.5);
+
+    const f2SlabGeo = new THREE.ExtrudeGeometry(f2Shape, {
+      depth: 0.45,
+      bevelEnabled: true,
+      bevelThickness: 0.08,
+      bevelSize: 0.1,
+      bevelSegments: 2
+    });
+    f2SlabGeo.rotateX(Math.PI / 2);
+
+    const f2SlabMesh = new THREE.Mesh(f2SlabGeo, matCorridorMarble);
+    f2SlabMesh.position.y = 0.45;
+    f2SlabMesh.castShadow = true;
+    f2SlabMesh.receiveShadow = true;
+    floor2Group.add(f2SlabMesh);
+
+    const f2GoldEdges = new THREE.LineSegments(new THREE.EdgesGeometry(f2SlabGeo), new THREE.LineBasicMaterial({ color: 0xffd269 }));
+    f2GoldEdges.position.y = 0.48;
+    floor2Group.add(f2GoldEdges);
+
+    const atriumF2Group = new THREE.Group();
+    atriumF2Group.position.set(-32.2, 0, 4.5);
+    floor2Group.add(atriumF2Group);
+
+    const ovalAtriumRing = new THREE.Mesh(
+      new THREE.CylinderGeometry(5.6, 5.6, 0.5, 40),
+      new THREE.MeshStandardMaterial({ color: 0xf0e0c4, emissive: 0xd9a866, emissiveIntensity: 0.16, roughness: 0.36 })
+    );
+    ovalAtriumRing.scale.set(1.42, 1, 0.72);
+    ovalAtriumRing.position.y = 0.26;
+    atriumF2Group.add(ovalAtriumRing);
+
+    const centralBlueSkylight = new THREE.Mesh(new THREE.CylinderGeometry(1.85, 1.85, 0.54, 32), matWaterAtrium);
+    centralBlueSkylight.position.y = 0.29;
+    atriumF2Group.add(centralBlueSkylight);
+
+    const skylightGoldRim = new THREE.Mesh(new THREE.TorusGeometry(1.88, 0.09, 10, 36), matGoldEdge);
+    skylightGoldRim.rotation.x = Math.PI / 2;
+    skylightGoldRim.position.y = 0.56;
+    atriumF2Group.add(skylightGoldRim);
+
+    const centralPalmBase = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.72, 0.25, 16), matGoldEdge);
+    centralPalmBase.position.y = 0.58;
+    atriumF2Group.add(centralPalmBase);
+    createTree(atriumF2Group, 0, 0.6, 0, 0.62);
+
+    const skylightHit = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.0, 1.8, 20), new THREE.MeshBasicMaterial({ visible: false }));
+    skylightHit.position.y = 0.9;
+    skylightHit.userData = {
+      selectable: true,
+      name: 'Claraboia & Salão da Praça de Alimentação',
+      floorLabel: '2º Pavimento — Praça de Alimentação',
+      category: 'Gastronomia & Convivência',
+      areaText: 'Salão Central L2',
+      description: 'Salão da Praça de Alimentação no 2º Pavimento.',
+      storeDims: { w: 12, d: 8, h: 2.0 },
+      highlightMesh: centralBlueSkylight,
+      baseEmissive: new THREE.Color(0x0e74bc),
+      baseEmissiveIntensity: 0.65
+    };
+    atriumF2Group.add(skylightHit);
+    interactiveMeshes.push(skylightHit);
+    searchableItems.push(skylightHit);
+    createFloatingPin3D(floor2Group, skylightHit, 3.2, 2.4);
+
+    const tableTopMat = new THREE.MeshStandardMaterial({ color: 0xfff8eb, emissive: 0xffdf9e, emissiveIntensity: 0.16, roughness: 0.28 });
+    const chairMat = new THREE.MeshStandardMaterial({ color: 0x8c6239, roughness: 0.5 });
+    for (let tx = -38.8; tx <= -25.4; tx += 1.15) {
+      for (let tz = 1.2; tz <= 7.8; tz += 1.1) {
+        const distSkylight = Math.hypot(tx + 32.2, tz - 4.5);
+        const distEllipse = Math.hypot((tx + 32.2) / 7.5, (tz - 4.5) / 3.7);
+        if (distSkylight > 2.25 && distEllipse < 0.95) {
+          const table = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.05, 10), tableTopMat);
+          table.position.set(tx, 0.72, tz);
+          floor2Group.add(table);
+
+          const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.11, 0.22, 6), chairMat);
+          ped.position.set(tx, 0.58, tz);
+          floor2Group.add(ped);
+        }
+      }
+    }
+
+    const storesFloor2 = [
+      { name: 'MUNDO IMERSIVO\nLOJA 215', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Entretenimento Imersivo', areaText: '250,94 m²', description: 'Experiências digitais imersivas.', x: -44.8, z: -0.6, w: 4.4, d: 4.2, h: 1.7, bgHex: '#312e81', textHex: '#f5d0fe', accentHex: '#e879f9', badgeShape: 'immersive', frontSide: 'east', interiorType: 'leisure-gym', hasPin: true, pinScale: 2.3 },
+      { name: 'REC. LOUÇAS\nLOJA 216', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Apoio Operacional', areaText: '15,00 m²', description: 'Recebimento de louças.', x: -41.4, z: 2.3, w: 1.8, d: 1.6, h: 1.5, bgHex: '#475569', textHex: '#f8fafc', accentHex: '#94a3b8', frontSide: 'east', interiorType: 'none' },
+      { name: 'EVENTO IMERSO MAR', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Área de Eventos', areaText: '92,71 m²', description: 'Eventos culturais.', x: -44.2, z: 7.4, w: 3.4, d: 3.1, h: 1.6, bgHex: '#0284c7', textHex: '#e0f2fe', accentHex: '#38bdf8', frontSide: 'east', interiorType: 'leisure-gym' },
+      { name: 'DELIVERY', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Logística & Entregas', areaText: '25,00 m²', description: 'Atendimento delivery.', x: -47.2, z: 7.4, w: 2.0, d: 2.6, h: 1.5, bgHex: '#b45309', textHex: '#fef3c7', accentHex: '#f59e0b', frontSide: 'east', interiorType: 'none' },
+      { name: 'LOJA 200', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Operação Gastronômica', areaText: '286,07 m²', description: 'Grande operação no extremo sudoeste.', x: -44.0, z: 11.4, w: 4.5, d: 3.6, h: 1.7, bgHex: '#92400e', textHex: '#fef3c7', accentHex: '#f59e0b', frontSide: 'east', interiorType: 'dining' },
+      { name: 'DEP. ADM', floorLabel: '2º Pavimento — Bastidores Técnicos', category: 'Administração', areaText: '88,90 m²', description: 'Departamento Administrativo.', x: -37.2, z: -5.4, w: 4.0, d: 2.1, h: 1.5, bgHex: '#475569', textHex: '#f8fafc', accentHex: '#94a3b8', frontSide: 'south', interiorType: 'none' },
+      { name: 'SALA SO', floorLabel: '2º Pavimento — Bastidores Técnicos', category: 'Sala Técnica', areaText: '28,00 m²', description: 'Sala técnica.', x: -33.4, z: -5.4, w: 2.8, d: 2.1, h: 1.5, bgHex: '#475569', textHex: '#f8fafc', accentHex: '#94a3b8', frontSide: 'south', interiorType: 'none' },
+      { name: 'C. MÁQ. AC 06', floorLabel: '2º Pavimento — Bastidores Técnicos', category: 'Casa de Máquinas', areaText: '130,77 m²', description: 'Central de ar-condicionado.', x: -29.0, z: -5.4, w: 5.2, d: 2.1, h: 1.5, bgHex: '#334155', textHex: '#e2e8f0', accentHex: '#64748b', frontSide: 'south', interiorType: 'none' },
+      { name: "McDonald's\nLOJA 214", floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Fast Food', areaText: '161,69 m²', description: 'McDonald’s.', x: -38.4, z: -1.6, w: 3.8, d: 3.2, h: 1.7, bgHex: '#dc2626', textHex: '#fef08a', accentHex: '#facc15', badgeShape: 'mcd-arches', frontSide: 'south', interiorType: 'dining', hasPin: true, pinScale: 2.3 },
+      { name: 'SPOLETO\nLOJA 213', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Culinária Italiana', areaText: '53,38 m²', description: 'Massas italianas.', x: -35.2, z: -1.6, w: 2.1, d: 3.2, h: 1.7, bgHex: '#f97316', textHex: '#ffffff', accentHex: '#fed7aa', frontSide: 'south', interiorType: 'dining' },
+      { name: 'PIZZA HUT\nLOJA 212', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Pizzaria', areaText: '37,25 m²', description: 'Pizzaria.', x: -33.0, z: -1.6, w: 1.9, d: 3.2, h: 1.7, bgHex: '#e11d48', textHex: '#ffffff', accentHex: '#fda4af', frontSide: 'south', interiorType: 'dining' },
+      { name: 'VISCONDE DO CAMARÃO\nLOJA 211', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Frutos do Mar', areaText: '35,44 m²', description: 'Camarões e pratos executivos.', x: -30.9, z: -1.6, w: 1.9, d: 3.2, h: 1.7, bgHex: '#0ea5e9', textHex: '#ffffff', accentHex: '#7dd3fc', frontSide: 'south', interiorType: 'dining' },
+      { name: 'DONA MARIA EXPRESS\nLOJA 210', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Comida Brasileira', areaText: '32,55 m²', description: 'Culinária regional.', x: -28.8, z: -1.6, w: 1.9, d: 3.2, h: 1.7, bgHex: '#f59e0b', textHex: '#fef3c7', accentHex: '#fde047', frontSide: 'south', interiorType: 'dining' },
+      { name: 'DIVINO FOGÃO\nLOJA 209', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Buffet & Culinária Típica', areaText: '57,43 m²', description: 'Comida típica da fazenda.', x: -26.3, z: -1.6, w: 2.6, d: 3.2, h: 1.7, bgHex: '#b91c1c', textHex: '#fef3c7', accentHex: '#fbbf24', frontSide: 'south', interiorType: 'dining' },
+      { name: 'WC MASCULINO L2', floorLabel: '2º Pavimento — Sanitários', category: 'Sanitários', areaText: '46,72 m²', description: 'Sanitários masculinos.', x: -23.8, z: -2.2, w: 1.9, d: 2.2, h: 1.5, bgHex: '#1d4ed8', textHex: '#dbeafe', accentHex: '#60a5fa', frontSide: 'west', interiorType: 'none' },
+      { name: 'KIN SUI\nLOJA 201', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Culinária Oriental', areaText: '80,69 m²', description: 'Gastronomia oriental.', x: -40.2, z: 8.6, w: 2.4, d: 2.8, h: 1.7, bgHex: '#27272a', textHex: '#fecaca', accentHex: '#f87171', frontSide: 'north', interiorType: 'dining' },
+      { name: 'GIRAFFAS\nLOJA 202', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Pratos & Sanduíches', areaText: '65,41 m²', description: 'Grelhados e pratos.', x: -37.6, z: 9.8, w: 2.4, d: 2.8, h: 1.7, bgHex: '#facc15', textHex: '#7c2d12', accentHex: '#f97316', frontSide: 'north', interiorType: 'dining' },
+      { name: 'LOJA 203 (VAGA)', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Espaço Comercial Disponível', areaText: '58,81 m²', description: 'Espaço disponível.', x: -35.0, z: 10.0, w: 2.3, d: 2.7, h: 1.7, bgHex: '#475569', textHex: '#f1f5f9', accentHex: '#94a3b8', frontSide: 'north', interiorType: 'none' },
+      { name: 'SPAGHETTINI\nLOJA 204', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Massas & Grelhados', areaText: '38,11 m²', description: 'Massas.', x: -32.6, z: 10.0, w: 2.0, d: 2.7, h: 1.7, bgHex: '#d97706', textHex: '#fef3c7', accentHex: '#fde047', frontSide: 'north', interiorType: 'dining' },
+      { name: 'LOJA 205 (VAGA)', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Espaço Comercial Disponível', areaText: '35,51 m²', description: 'Espaço disponível.', x: -30.5, z: 10.0, w: 1.9, d: 2.7, h: 1.7, bgHex: '#475569', textHex: '#f1f5f9', accentHex: '#94a3b8', frontSide: 'north', interiorType: 'none' },
+      { name: 'SUBWAY\nLOJA 206', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Sanduíches', areaText: '27,88 m²', description: 'Subway.', x: -28.4, z: 10.0, w: 1.9, d: 2.7, h: 1.7, bgHex: '#16a34a', textHex: '#fef08a', accentHex: '#facc15', frontSide: 'north', interiorType: 'dining' },
+      { name: 'EXPRESS GRILL\nLOJA 207', floorLabel: '2º Pavimento — Praça de Alimentação', category: 'Churrasco & Grelhados', areaText: '39,44 m²', description: 'Grelhados.', x: -26.0, z: 10.0, w: 2.4, d: 2.7, h: 1.7, bgHex: '#b91c1c', textHex: '#ffffff', accentHex: '#f87171', frontSide: 'north', interiorType: 'dining', hasPin: true, pinScale: 2.3 },
+      { name: 'WC FEMININO L2', floorLabel: '2º Pavimento — Sanitários', category: 'Sanitários & Brigada', areaText: '39,97 m²', description: 'Sanitários femininos e PNE.', x: -23.6, z: 9.8, w: 1.9, d: 2.4, h: 1.5, bgHex: '#be185d', textHex: '#fce7f3', accentHex: '#f472b6', frontSide: 'west', interiorType: 'none' }
+    ];
+
+    storesFloor2.forEach((st) => createCutawayStoreUnit(floor2Group, st));
+
+    [
+      { x: -45.6, z: 2.3, rot: 0.22 },
+      { x: -45.6, z: 5.2, rot: -0.22 }
+    ].forEach((pg) => {
+      const pergola = new THREE.Group();
+      pergola.position.set(pg.x, 0.5, pg.z);
+      pergola.rotation.y = pg.rot;
+
+      const base = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.1, 1.6), matWoodSlats);
+      base.position.y = 0.55;
+      base.castShadow = true;
+      pergola.add(base);
+
+      for (let sx = -1.4; sx <= 1.4; sx += 0.28) {
+        const slat = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.09, 1.8), matGoldTrim);
+        slat.position.set(sx, 1.14, 0);
+        pergola.add(slat);
+      }
+      floor2Group.add(pergola);
+    });
+
+    createTree(floor2Group, -47.5, 0.5, 3.8, 0.5);
+    createTree(floor2Group, -47.2, 0.5, -4.8, 0.48);
+    createTree(floor2Group, -46.8, 0.5, 13.8, 0.5);
+
+    createEscalatorUnit(floor2Group, -19.8, -1.6, 2.8, 4.6, 1.9, 0, 'Escada Rolante Leste 01', false, 2.2);
+    createEscalatorUnit(floor2Group, -19.8, -1.6, 3.9, 4.6, 1.9, 0, 'Escada Rolante Leste — Acesso Praça', true, 2.2);
+    createEscalatorUnit(floor2Group, -19.8, -1.6, 5.1, 4.6, 1.9, 0, 'Escada Rolante Leste 03', false, 2.2);
+    createEscalatorUnit(floor2Group, -19.8, -1.6, 6.2, 4.6, 1.9, 0, 'Escada Rolante Leste 04', false, 2.2);
+
+    // ============================================================================
+    // 9. FEIXES HOLOGRÁFICOS E FLUXOS DE PARTÍCULAS
+    // ============================================================================
+    const holographicBeamGroup = new THREE.Group();
+    const beamRotatingRings = [];
+
+    function createHoloBeam(parent, x, y, z, h, rTop, rBot, colorHex) {
+      const beam = new THREE.Mesh(
+        new THREE.CylinderGeometry(rTop, rBot, h, 40, 1, true),
+        new THREE.ShaderMaterial({
+          uniforms: { uT: shaderTime, uC: { value: new THREE.Color(colorHex) } },
+          transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+          vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+          fragmentShader: `uniform float uT; uniform vec3 uC; varying vec2 vUv;
+            void main(){ float f=pow(1.0-vUv.y,1.7); float s=0.65+0.35*sin(vUv.y*28.0-uT*3.0); gl_FragColor=vec4(uC,f*0.18*s); }`
+        })
+      );
+      beam.position.set(x, y + h / 2, z);
+      parent.add(beam);
+      holographicBeamGroup.add(beam);
+
+      for (let i = 0; i < 3; i++) {
+        const rg = new THREE.Mesh(
+          new THREE.TorusGeometry(rBot + 0.9 + i * 0.5, 0.05, 8, 64),
+          new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.78 })
+        );
+        rg.rotation.x = Math.PI / 2;
+        rg.position.set(x, y + 0.4 + i * 1.6, z);
+        rg.userData.spin = (i % 2 ? -1 : 1) * (0.5 + i * 0.25);
+        parent.add(rg);
+        beamRotatingRings.push(rg);
+      }
+    }
+
+    createHoloBeam(atriumF2Group, 0, 0.6, 0, 9.0, 1.5, 2.0, CYAN_HEX);
+    createHoloBeam(floor1Group, -7.5, 1.0, 8.2, 7.0, 1.2, 1.8, 0xffd166);
+
+    const flowGlowTex = (function () {
+      const c = document.createElement('canvas'); c.width = c.height = 64;
+      const ctx = c.getContext('2d');
+      const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, 'rgba(255,255,255,1)');
+      g.addColorStop(0.28, 'rgba(255,255,255,0.55)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
+      return new THREE.CanvasTexture(c);
+    })();
+
+    function createParticleFlow(parent, ptsArr, count, colorHex, speed, size) {
+      const curve = ptsArr.map((p) => new THREE.Vector3(p[0], p[1], p[2]));
+      const lens = [0];
+      for (let i = 1; i < curve.length; i++) lens.push(lens[i - 1] + curve[i].distanceTo(curve[i - 1]));
+      const total = lens[lens.length - 1];
+      const pos = new Float32Array(count * 3), off = new Float32Array(count), spd = new Float32Array(count);
+      for (let i = 0; i < count; i++) { off[i] = Math.random(); spd[i] = speed * (0.75 + Math.random() * 0.55); }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const mat = new THREE.PointsMaterial({
+        size, map: flowGlowTex, color: colorHex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true
+      });
+      const points = new THREE.Points(geo, mat);
+      points.frustumCulled = false;
+      parent.add(points);
+      const v = new THREE.Vector3();
+      return {
+        points,
+        update(t) {
+          for (let i = 0; i < count; i++) {
+            const u = (off[i] + (t * spd[i]) / total) % 1;
+            const d = u * total;
+            let k = 1;
+            while (k < lens.length - 1 && lens[k] < d) k++;
+            const seg = lens[k] - lens[k - 1] || 1;
+            v.lerpVectors(curve[k - 1], curve[k], (d - lens[k - 1]) / seg);
+            pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z;
+          }
+          geo.attributes.position.needsUpdate = true;
+        }
+      };
+    }
+
+    const particleFlows = [];
+    const Y_FLOW1 = 1.15;
+    particleFlows.push(createParticleFlow(floor1Group, [[-42, Y_FLOW1, 10.2], [7, Y_FLOW1, 10.2], [24, Y_FLOW1, 12.2]], 65, CYAN_HEX, 3.2, 1.15));
+    particleFlows.push(createParticleFlow(floor1Group, [[2, Y_FLOW1, -6], [2, Y_FLOW1, 12.2]], 38, 0xffd166, 2.6, 1.35));
+    particleFlows.push(createParticleFlow(floor1Group, [[-18.5, Y_FLOW1, -9], [-18.5, Y_FLOW1, 11]], 38, CYAN_HEX, 2.8, 1.35));
+
+    const f2OrbitPts = [];
+    for (let i = 0; i <= 48; i++) {
+      const a = (i / 48) * Math.PI * 2;
+      f2OrbitPts.push([-32.2 + Math.cos(a) * 9.5, 1.15, 4.5 + Math.sin(a) * 4.6]);
+    }
+    particleFlows.push(createParticleFlow(floor2Group, f2OrbitPts, 56, CYAN_HEX, 2.4, 1.2));
+
+    const Y_ROAD = -5.1;
+    particleFlows.push(createParticleFlow(maquetteRoot, [[-72, Y_ROAD, -48], [-72, Y_ROAD, 43.5], [72, Y_ROAD, 43.5], [72, Y_ROAD, -48]], 44, 0xfff1d6, 14, 1.9));
+    particleFlows.push(createParticleFlow(maquetteRoot, [[74, Y_ROAD, -48], [74, Y_ROAD, 45.5], [-74, Y_ROAD, 45.5], [-74, Y_ROAD, -48]], 44, 0xff4d5e, 12, 1.9));
+
+    const patrolDrones = [];
+    for (let k = 0; k < 3; k++) {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.22, 1.1), new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.3 }));
+      g.add(body);
+      const beaconColor = k === 1 ? 0xff5ec7 : CYAN_HEX;
+      const core = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 12), new THREE.MeshBasicMaterial({ color: beaconColor }));
+      core.position.y = -0.2; g.add(core);
+      [[-0.7, -0.7], [0.7, -0.7], [-0.7, 0.7], [0.7, 0.7]].forEach(([rx, rz]) => {
+        const rotor = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.03, 14), new THREE.MeshBasicMaterial({ color: CYAN_HEX, transparent: true, opacity: 0.45 }));
+        rotor.position.set(rx, 0.16, rz); g.add(rotor);
+      });
+      scene.add(g);
+
+      const N = 64, tp = new Float32Array(N * 3);
+      const tg = new THREE.BufferGeometry(); tg.setAttribute('position', new THREE.BufferAttribute(tp, 3));
+      const trail = new THREE.Line(tg, new THREE.LineBasicMaterial({ color: beaconColor, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
+      trail.frustumCulled = false; scene.add(trail);
+      patrolDrones.push({ g, trail, tp, N, a: 0.09 + k * 0.027, b: 0.13 + k * 0.021, ph: k * 2.1, y: 23 + k * 3.2, rx: 74 - k * 5, rz: 44 - k * 3 });
+    }
+
+    // ============================================================================
+    // 10. ETIQUETAS MINIMALISTAS E BEM DEFINIDAS
+    // ============================================================================
+    const LABEL_FONT = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+    const GROUPS = {
+      moda:  { color: 0xe879b9, label: 'Moda & Beleza' },
+      food:  { color: 0xf0a848, label: 'Alimentação' },
+      lazer: { color: 0xa78bfa, label: 'Lazer & Esportes' },
+      casa:  { color: 0x56cfe1, label: 'Casa & Varejo' },
+      vaga:  { color: 0x7c8b9e, label: 'Vagas' }
+    };
+    const catOn = { moda: true, food: true, lazer: true, casa: true, vaga: true };
+    let namesOn = true;
+
+    function groupOf(d) {
+      const c = (d.category || '').toLowerCase();
+      const all = c + ' ' + (d.name || '').toLowerCase();
+      if (/sanit|técnic|tecnic|máquina|maquina|administra|apoio|log[ií]stic|mobilidade|conviv[eê]ncia/.test(c)) return null;
+      if (/vaga|dispon/.test(all)) return 'vaga';
+      if (/restaur|fast|culin|pizza|frutos|comida|buffet|sandu|massa|churrasc|prato|gastron|caf[eé]|doce|gelato/.test(all)) return 'food';
+      if (/entreten|brinqued|parque|academ|evento|imers|lazer|esport/.test(c)) return 'lazer';
+      if (/moda|vestu|cal[çc]ado|departamento|joalh|perfum|beleza|megalojas|ótica|otica|acess/.test(all)) return 'moda';
+      return 'casa';
+    }
+    const hexStr = (n) => '#' + n.toString(16).padStart(6, '0');
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    function drawCleanPillLabel(L) {
+      const cv = L.canvas, ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+      const col = hexStr(GROUPS[L.group].color);
+      ctx.clearRect(0, 0, W, H);
+
+      const padX = 18, padY = 16;
+      const boxW = W - padX * 2, boxH = H - padY * 2;
+      roundRect(ctx, padX, padY, boxW, boxH, 24);
+      ctx.fillStyle = 'rgba(7, 13, 26, 0.90)';
+      ctx.fill();
+
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+      ctx.stroke();
+
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.arc(padX + 26, H / 2, 7.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      const main = L.text.split('\n')[0].trim();
+      const textAreaW = boxW - 64;
+      let fs = 40;
+      ctx.font = '600 ' + fs + 'px ' + LABEL_FONT;
+      while (ctx.measureText(main).width > textAreaW && fs > 22) {
+        fs -= 1;
+        ctx.font = '600 ' + fs + 'px ' + LABEL_FONT;
+      }
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillText(main, padX + 36 + textAreaW / 2, H / 2 + 1);
+
+      L.tex.needsUpdate = true;
+    }
+
+    const labels = [];
+    const outlines = [];
+    const lineMats = {};
+    const stemMats = {};
+    const maxAniso = Math.min(4, renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1);
+
+    searchableItems.slice().forEach((hit) => {
+      const d = hit.userData;
+      if (!d || !d.storeDims || !hit.parent) return;
+      const g = groupOf(d);
+      if (!g) return;
+      const isKiosk = /^quiosque/i.test(d.name);
+      const dims = d.storeDims;
+      const color = GROUPS[g].color;
+
+      if (!lineMats[g]) {
+        lineMats[g] = new THREE.LineBasicMaterial({ color: new THREE.Color(color), transparent: true, opacity: 0.42 });
+        stemMats[g] = new THREE.LineBasicMaterial({ color: 0xcbd5e1, transparent: true, opacity: 0.45 });
+      }
+
+      if (!isKiosk) {
+        const edges = new THREE.LineSegments(
+          new THREE.EdgesGeometry(new THREE.BoxGeometry(dims.w, dims.h, dims.d)),
+          lineMats[g]
+        );
+        edges.position.copy(hit.position);
+        hit.parent.add(edges);
+        outlines.push({ obj: edges, group: g });
+      }
+
+      const topY = hit.position.y + dims.h / 2;
+      const lift = isKiosk ? 0.55 : 0.72;
+      const canvas = document.createElement('canvas');
+      canvas.width = 440; canvas.height = 104;
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.encoding = THREE.sRGBEncoding;
+      tex.anisotropy = maxAniso;
+
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: true });
+      const sprite = new THREE.Sprite(mat);
+      sprite.center.set(0.5, 0);
+      sprite.renderOrder = 10;
+      sprite.position.set(hit.position.x, topY + lift, hit.position.z);
+
+      const w = isKiosk ? 4.0 : Math.min(8.2, Math.max(4.4, dims.w * 0.7));
+      const h = w * (104 / 440);
+      sprite.scale.set(w, h, 1);
+      sprite.userData = Object.assign({}, d, { isPin: true, linkedHitMesh: hit });
+      hit.parent.add(sprite);
+      interactiveMeshes.push(sprite);
+
+      const stemGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(hit.position.x, topY, hit.position.z),
+        new THREE.Vector3(hit.position.x, topY + lift, hit.position.z)
+      ]);
+      const stem = new THREE.Line(stemGeo, stemMats[g]);
+      hit.parent.add(stem);
+
+      const L = {
+        sprite, mat, stem, group: g, tex, canvas, w, h,
+        text: (isKiosk ? d.name.replace(/^quiosque\s*/i, '') : d.name)
+      };
+      labels.push(L);
+      drawCleanPillLabel(L);
+    });
+
+    if (document.fonts && document.fonts.load) {
+      document.fonts.load('600 36px Inter').then(() => labels.forEach(drawCleanPillLabel)).catch(() => {});
+    }
+
+    function refreshLabelVisibility() {
+      labels.forEach((L) => {
+        const v = namesOn && catOn[L.group];
+        L.sprite.visible = v;
+        L.stem.visible = v;
+      });
+      outlines.forEach((o) => { o.obj.visible = catOn[o.group]; });
+    }
+
+    document.querySelectorAll('#category-legend [data-cat]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const k = b.dataset.cat;
+        catOn[k] = !catOn[k];
+        b.classList.toggle('leg-off', !catOn[k]);
+        refreshLabelVisibility();
+      });
+    });
+
+    // ============================================================================
+    // 11. LINHAS VERTICAIS DE ALINHAMENTO
+    // ============================================================================
+    function createVerticalGuideLine(x, z) {
+      const pts = [new THREE.Vector3(x, 0.5, z), new THREE.Vector3(x, 1.0, z)];
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineDashedMaterial({ color: 0xffd269, dashSize: 0.75, gapSize: 0.55, transparent: true, opacity: 0.88 });
+      const line = new THREE.Line(geo, mat);
+      line.computeLineDistances();
+      maquetteRoot.add(line);
+      return line;
+    }
+
+    const guideWest = createVerticalGuideLine(-50.8, 4.5);
+    const guideEast = createVerticalGuideLine(-13.8, 4.5);
+
+    function updateVerticalGuideLines() {
+      const topY = floor2Group.position.y + 0.45;
+      const botY = floor1Group.position.y + 0.5;
+      const visible = topY - botY > 4.2 && floor1Group.visible && floor2Group.visible;
+      guideWest.visible = visible;
+      guideEast.visible = visible;
+      if (visible) {
+        [guideWest, guideEast].forEach((line) => {
+          const posAttr = line.geometry.attributes.position;
+          posAttr.setXYZ(0, posAttr.getX(0), botY, posAttr.getZ(0));
+          posAttr.setXYZ(1, posAttr.getX(1), topY, posAttr.getZ(1));
+          posAttr.needsUpdate = true;
+          line.computeLineDistances();
+        });
+      }
+    }
+    updateVerticalGuideLines();
+
+    // ============================================================================
+    // 12. INTERATIVIDADE E CONTROLES
+    // ============================================================================
+    let targetFloor1Y = FLOOR1_Y;
+    let targetFloor2Y = FLOOR2_EXPLODED_Y;
+    let pinsVisible = false;
+    let autoRotate = false;
+    let transparentMode = false;
+    let hideWallsMode = false;
+
+    const fxState = { flow: true, drones: true, beams: true };
+
+    function applyVisualTheme(styleKey) {
+      const isDay = styleKey === 'day';
+      if (isDay) {
+        skyUniforms.top.value.setHex(0x2f7fd6);
+        skyUniforms.mid.value.setHex(0x8ec5f2);
+        skyUniforms.bot.value.setHex(0xcfe0ee);
+        scene.background.setHex(0xcfe0ee);
+        scene.fog.color.setHex(0xcfe0ee);
+        scene.fog.density = 0.0011;
+        hemiLight.color.setHex(0xdcebff);
+        hemiLight.groundColor.setHex(0x6b6252);
+        hemiLight.intensity = 1.25;
+        sunLight.color.setHex(0xfff4de);
+        sunLight.intensity = 1.65;
+        starField.visible = false;
+        neonGroundUniforms.uBase.value.setHex(0x2a3441);
+        neonGroundUniforms.uGrid.value.setHex(0x1a8fb5);
+        neonGroundUniforms.uFog.value.setHex(0xcfe0ee);
+        neonGroundUniforms.uGridI.value = 0.45;
+      } else {
+        skyUniforms.top.value.setHex(0x020818);
+        skyUniforms.mid.value.setHex(0x0a264f);
+        skyUniforms.bot.value.setHex(0x113a6e);
+        scene.background.setHex(0x071d3d);
+        scene.fog.color.setHex(0x071d3d);
+        scene.fog.density = 0.00095;
+        hemiLight.color.setHex(0xdcebff);
+        hemiLight.groundColor.setHex(0x2a3b59);
+        hemiLight.intensity = 1.15;
+        sunLight.color.setHex(0xfff4de);
+        sunLight.intensity = 1.55;
+        starField.visible = true;
+        neonGroundUniforms.uBase.value.setHex(0x07152b);
+        neonGroundUniforms.uGrid.value.setHex(0x2ee6ff);
+        neonGroundUniforms.uFog.value.setHex(0x071d3d);
+        neonGroundUniforms.uGridI.value = 0.95;
+      }
+      document.querySelectorAll('[data-style]').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.style === styleKey);
+      });
+    }
+
+    document.querySelectorAll('[data-style]').forEach((btn) => {
+      btn.addEventListener('click', () => applyVisualTheme(btn.dataset.style));
+    });
+
+    document.querySelectorAll('[data-fx]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.fx;
+        fxState[key] = !fxState[key];
+        btn.classList.toggle('active', fxState[key]);
+        if (key === 'beams') {
+          holographicBeamGroup.children.forEach((b) => { b.visible = fxState.beams; });
+          beamRotatingRings.forEach((r) => { r.visible = fxState.beams; });
+        }
+      });
+    });
+
+    let camAnimActive = false;
+    const desiredCamPos = INITIAL_CAM_POS.clone();
+    const desiredCamTarget = INITIAL_TARGET.clone();
+
+    function animateCameraTo(pos, target) {
+      desiredCamPos.copy(pos);
+      desiredCamTarget.copy(target);
+      camAnimActive = true;
+    }
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    let hoveredObj = null;
+    let selectedObj = null;
+    let pointerDownPos = { x: 0, y: 0 };
+
+    const hoverPill = document.getElementById('hover-pill');
+    const selectionCard = document.getElementById('selection-card');
+    const selBadge = document.getElementById('sel-badge');
+    const selTitle = document.getElementById('sel-title');
+    const selDesc = document.getElementById('sel-desc');
+    const selCategory = document.getElementById('sel-category');
+    const selArea = document.getElementById('sel-area');
+
+    function resolveTargetHit(obj) {
+      if (!obj) return null;
+      return obj.userData.isPin ? obj.userData.linkedHitMesh : obj;
+    }
+
+    function clearHighlight(obj) {
+      const target = resolveTargetHit(obj);
+      if (!target || !target.userData.highlightMesh) return;
+      const mat = target.userData.highlightMesh.material;
+      if (mat && mat.emissive) {
+        mat.emissive.copy(target.userData.baseEmissive);
+        mat.emissiveIntensity = target.userData.baseEmissiveIntensity;
+      }
+    }
+
+    function applyHighlight(obj, isSelected = false) {
+      const target = resolveTargetHit(obj);
+      if (!target || !target.userData.highlightMesh) return;
+      const mat = target.userData.highlightMesh.material;
+      if (mat && mat.emissive) {
+        mat.emissive.setHex(isSelected ? 0xffd166 : 0xfff1c2);
+        mat.emissiveIntensity = isSelected ? 0.85 : 0.68;
+      }
+    }
+
+    function selectInteractiveObject(rawHitObj, closeUpInterior = false) {
+      const hitObj = resolveTargetHit(rawHitObj);
+      if (!hitObj) return;
+
+      if (hitObj.userData.floorLabel.includes('1º Pavimento') && !floor1Group.visible) floor1Group.visible = true;
+      if (hitObj.userData.floorLabel.includes('2º Pavimento') && !floor2Group.visible) floor2Group.visible = true;
+
+      if (selectedObj && selectedObj !== hitObj) clearHighlight(selectedObj);
+      selectedObj = hitObj;
+      applyHighlight(selectedObj, true);
+
+      const data = hitObj.userData;
+      selBadge.textContent = data.floorLabel;
+      selTitle.textContent = data.name.replace('\n', ' — ');
+      selDesc.textContent = data.description;
+      selCategory.textContent = data.category;
+      selArea.textContent = `Área: ${data.areaText}`;
+      selectionCard.classList.remove('hidden');
+
+      const worldPos = new THREE.Vector3();
+      hitObj.getWorldPosition(worldPos);
+      if (closeUpInterior) {
+        animateCameraTo(new THREE.Vector3(worldPos.x - 2.2, worldPos.y + 11.5, worldPos.z + 14.5), worldPos);
+      } else {
+        animateCameraTo(new THREE.Vector3(worldPos.x - 4, worldPos.y + 22, worldPos.z + 29), worldPos);
+      }
+    }
+
+    document.getElementById('btn-focus-interior').addEventListener('click', () => {
+      if (selectedObj) selectInteractiveObject(selectedObj, true);
+    });
+
+    document.getElementById('close-card-btn').addEventListener('click', () => {
+      selectionCard.classList.add('hidden');
+      if (selectedObj) { clearHighlight(selectedObj); selectedObj = null; }
+    });
+
+    const searchInput = document.getElementById('store-search-input');
+    const searchResults = document.getElementById('search-results');
+    const clearSearchBtn = document.getElementById('clear-search-btn');
+
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.trim().toLowerCase();
+      clearSearchBtn.classList.toggle('hidden', q.length === 0);
+      if (!q) { searchResults.classList.add('hidden'); searchResults.innerHTML = ''; return; }
+      const matches = searchableItems.filter((item) => {
+        return item.userData.name.toLowerCase().includes(q) || item.userData.category.toLowerCase().includes(q);
+      }).slice(0, 7);
+
+      if (matches.length === 0) {
+        searchResults.innerHTML = `<div class="px-3 py-2 text-xs text-slate-400">Nenhum espaço encontrado.</div>`;
+      } else {
+        searchResults.innerHTML = matches.map((m, idx) => `
+          <button type="button" data-idx="${idx}" class="w-full text-left px-3 py-2 hover:bg-cyan-400/15 transition flex items-center justify-between gap-2">
+            <span class="text-xs font-medium text-slate-100 truncate">${m.userData.name.replace('\n', ' ')}</span>
+            <span class="text-[10px] text-cyan-300 shrink-0">${m.userData.floorLabel.split(' ')[0]} Pav.</span>
+          </button>`).join('');
+
+        searchResults.querySelectorAll('button').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            selectInteractiveObject(matches[Number(btn.dataset.idx)], true);
+            searchResults.classList.add('hidden');
+          });
+        });
+      }
+      searchResults.classList.remove('hidden');
+    });
+
+    clearSearchBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      clearSearchBtn.classList.add('hidden');
+      searchResults.classList.add('hidden');
+    });
+
+    function getActiveInteractiveMeshes() {
+      return interactiveMeshes.filter((m) => {
+        if (!m.visible) return false;
+        let p = m.parent;
+        while (p) {
+          if (!p.visible) return false;
+          p = p.parent;
+        }
+        return true;
+      });
+    }
+
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+      pointerDownPos = { x: e.clientX, y: e.clientY };
+      camAnimActive = false;
+    });
+
+    renderer.domElement.addEventListener('pointermove', (e) => {
+      pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+      pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(pointer, camera);
+      const intersects = raycaster.intersectObjects(getActiveInteractiveMeshes(), false);
+
+      if (intersects.length > 0) {
+        const hit = intersects[0].object;
+        document.body.style.cursor = 'pointer';
+        if (hoveredObj !== hit) {
+          if (hoveredObj && resolveTargetHit(hoveredObj) !== selectedObj) clearHighlight(hoveredObj);
+          hoveredObj = hit;
+          if (resolveTargetHit(hoveredObj) !== selectedObj) applyHighlight(hoveredObj, false);
+        }
+        hoverPill.textContent = hit.userData.name.replace('\n', ' ');
+        hoverPill.style.left = `${Math.min(window.innerWidth - 190, e.clientX + 14)}px`;
+        hoverPill.style.top = `${Math.max(12, e.clientY - 28)}px`;
+        hoverPill.classList.remove('hidden');
+      } else {
+        document.body.style.cursor = 'grab';
+        if (hoveredObj && resolveTargetHit(hoveredObj) !== selectedObj) clearHighlight(hoveredObj);
+        hoveredObj = null;
+        hoverPill.classList.add('hidden');
+      }
+    });
+
+    renderer.domElement.addEventListener('pointerup', (e) => {
+      const moved = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+      if (moved > 6) return;
+
+      pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+      pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const intersects = raycaster.intersectObjects(getActiveInteractiveMeshes(), false);
+      if (intersects.length > 0) selectInteractiveObject(intersects[0].object, false);
+    });
+
+    const viewButtons = ['btn-overview', 'btn-floor1', 'btn-floor2', 'btn-exploded'];
+    function setActiveViewButton(activeId) {
+      viewButtons.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('active', id === activeId);
+      });
+    }
+
+    document.getElementById('btn-overview').addEventListener('click', () => {
+      setActiveViewButton('btn-overview');
+      floor1Group.visible = true; floor2Group.visible = true;
+      targetFloor1Y = FLOOR1_Y; targetFloor2Y = FLOOR2_BASE_Y;
+      animateCameraTo(new THREE.Vector3(-10, 68, 106), new THREE.Vector3(-4, 4, -2));
+    });
+
+    document.getElementById('btn-floor1').addEventListener('click', () => {
+      setActiveViewButton('btn-floor1');
+      floor1Group.visible = true; floor2Group.visible = false;
+      targetFloor1Y = FLOOR1_Y;
+      animateCameraTo(new THREE.Vector3(-8, 56, 86), new THREE.Vector3(-4, 1.5, 0));
+    });
+
+    document.getElementById('btn-floor2').addEventListener('click', () => {
+      setActiveViewButton('btn-floor2');
+      floor1Group.visible = false; floor2Group.visible = true;
+      targetFloor2Y = 3.2;
+      animateCameraTo(new THREE.Vector3(-34, 32, 46), new THREE.Vector3(-32.5, 3.5, 4.5));
+    });
+
+    document.getElementById('btn-exploded').addEventListener('click', () => {
+      setActiveViewButton('btn-exploded');
+      floor1Group.visible = true; floor2Group.visible = true;
+      targetFloor1Y = FLOOR1_Y; targetFloor2Y = FLOOR2_EXPLODED_Y;
+      animateCameraTo(INITIAL_CAM_POS, INITIAL_TARGET);
+    });
+
+    document.getElementById('btn-names').addEventListener('click', (e) => {
+      namesOn = !namesOn;
+      e.currentTarget.classList.toggle('active', namesOn);
+      refreshLabelVisibility();
+    });
+
+    document.getElementById('btn-pins').addEventListener('click', (e) => {
+      pinsVisible = !pinsVisible;
+      e.currentTarget.classList.toggle('active', pinsVisible);
+      floatingPins.forEach((pin) => { pin.visible = pinsVisible; });
+    });
+
+    document.getElementById('btn-rotate').addEventListener('click', (e) => {
+      autoRotate = !autoRotate;
+      controls.autoRotate = autoRotate;
+      controls.autoRotateSpeed = 0.85;
+      e.currentTarget.classList.toggle('active', autoRotate);
+    });
+
+    document.getElementById('btn-zoom').addEventListener('click', () => {
+      const dir = new THREE.Vector3().subVectors(camera.position, controls.target);
+      dir.multiplyScalar(0.74);
+      if (dir.length() < controls.minDistance) dir.setLength(controls.minDistance);
+      animateCameraTo(new THREE.Vector3().addVectors(controls.target, dir), controls.target.clone());
+    });
+
+    document.getElementById('btn-transparent').addEventListener('click', (e) => {
+      transparentMode = !transparentMode;
+      e.currentTarget.classList.toggle('active', transparentMode);
+      transparentTargetMaterials.forEach((mat) => {
+        mat.transparent = transparentMode;
+        mat.opacity = transparentMode ? 0.32 : 1.0;
+        mat.needsUpdate = true;
+      });
+    });
+
+    document.getElementById('btn-walls').addEventListener('click', (e) => {
+      hideWallsMode = !hideWallsMode;
+      e.currentTarget.classList.toggle('active', hideWallsMode);
+      wallMeshes.forEach((w) => { w.visible = !hideWallsMode; });
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      setActiveViewButton('btn-exploded');
+      floor1Group.visible = true; floor2Group.visible = true;
+      targetFloor1Y = FLOOR1_Y; targetFloor2Y = FLOOR2_EXPLODED_Y;
+
+      namesOn = true;
+      document.getElementById('btn-names').classList.add('active');
+      refreshLabelVisibility();
+
+      pinsVisible = false;
+      document.getElementById('btn-pins').classList.remove('active');
+      floatingPins.forEach((pin) => { pin.visible = false; });
+
+      autoRotate = false; controls.autoRotate = false;
+      document.getElementById('btn-rotate').classList.remove('active');
+
+      if (transparentMode) {
+        transparentMode = false;
+        document.getElementById('btn-transparent').classList.remove('active');
+        transparentTargetMaterials.forEach((mat) => { mat.transparent = false; mat.opacity = 1.0; mat.needsUpdate = true; });
+      }
+
+      if (hideWallsMode) {
+        hideWallsMode = false;
+        document.getElementById('btn-walls').classList.remove('active');
+        wallMeshes.forEach((w) => { w.visible = true; });
+      }
+
+      if (selectedObj) { clearHighlight(selectedObj); selectedObj = null; }
+      selectionCard.classList.add('hidden');
+      animateCameraTo(INITIAL_CAM_POS, INITIAL_TARGET);
+    });
+
+    // ============================================================================
+    // 13. LOOP DE ANIMAÇÃO
+    // ============================================================================
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    const clock = new THREE.Clock();
+    let lastTelemetryTick = 0;
+    const elStatVis = document.getElementById('st-vis');
+    const elStatPark = document.getElementById('st-park');
+    const elStatEn = document.getElementById('st-en');
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const elapsed = clock.getElapsedTime();
+      shaderTime.value = elapsed;
+
+      const neonPulse = 0.8 + 0.2 * Math.sin(elapsed * 2.2);
+      cyanNeonStripMat.color.setRGB(0.37 * neonPulse, 0.95 * neonPulse, 1.0 * neonPulse);
+      hudRing1.rotation.y = elapsed * 0.05;
+      hudRing2.rotation.y = -elapsed * 0.03;
+      beamRotatingRings.forEach((r) => { r.rotation.z += 0.01 * r.userData.spin; });
+
+      particleFlows.forEach((f) => {
+        f.points.visible = fxState.flow;
+        if (fxState.flow) f.update(elapsed);
+      });
+
+      patrolDrones.forEach((d) => {
+        d.g.visible = d.trail.visible = fxState.drones;
+        if (!fxState.drones) return;
+        const x = d.rx * Math.cos(d.a * elapsed + d.ph);
+        const z = d.rz * Math.sin(d.b * elapsed + d.ph);
+        const y = d.y + 1.8 * Math.sin(elapsed * 0.7 + d.ph);
+        const dx = -d.rx * d.a * Math.sin(d.a * elapsed + d.ph);
+        const dz = d.rz * d.b * Math.cos(d.b * elapsed + d.ph);
+        d.g.position.set(x, y, z);
+        d.g.rotation.y = -Math.atan2(dz, dx);
+        d.g.rotation.z = 0.12 * Math.sin(elapsed * 1.3 + d.ph);
+        d.tp.copyWithin(3, 0, (d.N - 1) * 3);
+        d.tp[0] = x; d.tp[1] = y - 0.2; d.tp[2] = z;
+        d.trail.geometry.attributes.position.needsUpdate = true;
+      });
+
+      if (elapsed - lastTelemetryTick > 0.75 && elStatVis) {
+        lastTelemetryTick = elapsed;
+        elStatVis.textContent = Math.round(1860 + 140 * Math.sin(elapsed * 0.3)).toLocaleString('pt-BR');
+        elStatPark.textContent = Math.round(64 + 7 * Math.sin(elapsed * 0.22)) + '%';
+        elStatEn.textContent = Math.round(1190 + 60 * Math.sin(elapsed * 0.4)).toLocaleString('pt-BR') + ' kW';
+      }
+
+      floatingPins.forEach((pin) => {
+        if (!pin.visible) return;
+        const { baseY, baseScale, phase } = pin.userData;
+        pin.position.y = baseY + Math.sin(elapsed * 2.4 + phase) * 0.25;
+        const pulse = 1 + Math.sin(elapsed * 3.0 + phase) * 0.05;
+        pin.scale.set(baseScale * pulse, baseScale * pulse, 1);
+      });
+
+      const dist = camera.position.distanceTo(controls.target);
+      const labelScale = THREE.MathUtils.clamp(dist / 88, 0.72, 1.25);
+      const labelOpacity = dist < 24 ? 0.4 : (dist > 145 ? 0.6 : 0.96);
+      for (let i = 0; i < labels.length; i++) {
+        const L = labels[i];
+        L.sprite.scale.set(L.w * labelScale, L.h * labelScale, 1);
+        L.mat.opacity = labelOpacity;
+      }
+
+      floor1Group.position.y += (targetFloor1Y - floor1Group.position.y) * 0.08;
+      floor2Group.position.y += (targetFloor2Y - floor2Group.position.y) * 0.08;
+      updateVerticalGuideLines();
+
+      if (camAnimActive) {
+        camera.position.lerp(desiredCamPos, 0.075);
+        controls.target.lerp(desiredCamTarget, 0.085);
+        if (camera.position.distanceTo(desiredCamPos) < 0.25 && controls.target.distanceTo(desiredCamTarget) < 0.15) {
+          camAnimActive = false;
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    window.onload = function () {
+      animate();
+    };
+
+    // ============================================================================
+    // 14. INTEGRAÇÃO COM A CENTRAL OPERACIONAL — MODO FUTURO
+    //     Recebe os riscos projetados do sistema (postMessage) e desenha
+    //     faróis de risco clicáveis sobre cada setor cadastrado.
+    // ============================================================================
+    try { (function futureRiskLayer() {
+      const EMBED = window.parent && window.parent !== window;
+      if (EMBED) document.body.classList.add('embedded');
+
+      // Nome da área no sistema -> onde ela fica no modelo 3D.
+      // mesh: trecho do nome de um objeto do modelo · floor/x/z: posição aproximada.
+      const ANCHORS = {
+        'estacionamento': { floor: 1, x: -12, z: -22 },
+        'estacionamento frontal': { floor: 1, x: -8, z: 28 },
+        'acesso principal': { floor: 1, x: 0, z: 22.5 },
+        'praça de eventos': { mesh: 'PRAÇA DE EVENTOS' },
+        'circulação central': { floor: 1, x: 1.5, z: 5.5 },
+        'c&a': { mesh: 'C&A' },
+        'renner': { mesh: 'RENNER' },
+        'corredor oeste': { floor: 1, x: -29, z: 10 },
+        'corredor leste': { floor: 1, x: 22, z: 12 },
+        'cinemark': { mesh: 'CINEMARK' },
+        'lojas âncora': { mesh: 'PERNAMBUCANAS' },
+        'morofit / wow park': { mesh: 'WOW PARK' },
+        'doca e serviço': { floor: 1, x: 49, z: -6 },
+        'praça de alimentação': { mesh: 'CLARABOIA' },
+        'lojas de alimentação norte': { mesh: 'DONA MARIA' },
+        'lojas de alimentação sul': { mesh: 'SPAGHETTINI' },
+        'mundo imersivo': { mesh: 'MUNDO IMERSIVO' },
+        'evento imerso mar': { mesh: 'EVENTO IMERSO MAR' },
+        'escadas rolantes': { mesh: 'ACESSO PRAÇA' },
+        'banheiros masculinos': { mesh: 'WC MASCULINO' },
+        'banheiros femininos': { mesh: 'WC FEMININO' },
+        'casa de máquinas a.c': { mesh: 'C. MÁQ' },
+        'administração': { mesh: 'DEP. ADM' }
+      };
+      const TONE_HEX = { good: 0x34d399, warn: 0xfbbf24, bad: 0xf43f5e, mit: 0x5ef2ff };
+      const TONE_CSS = { good: '#34d399', warn: '#fbbf24', bad: '#f43f5e', mit: '#5ef2ff' };
+      const TONE_TXT = { good: 'Sem alerta relevante', warn: 'Atenção', bad: 'Prioridade elevada', mit: 'Ação da equipe simulada' };
+
+      const beacons = {};
+      let state = { areas: [], horizon: 0, playing: false, full: false };
+      let layerOn = true;
+      let selectedId = '';
+      let armedHint = false;
+
+      const send = (msg) => { if (EMBED) { try { window.parent.postMessage(Object.assign({ source: 'cd3d' }, msg), '*'); } catch (e) {} } };
+      const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      const toneOf = (a) => (a.mit ? 'mit' : a.tone);
+
+      // ---------- Estilos e elementos de interface ----------
+      const css = document.createElement('style');
+      css.textContent = `
+        body.embedded #selection-card { top: 92px; }
+        #risk-panel { position: fixed; top: 16px; right: 16px; z-index: 25; width: 262px; padding: 10px 12px; border-radius: 16px; color: #e6fdff; }
+        #risk-panel .rp-top { display: flex; align-items: center; gap: 8px; }
+        #risk-panel .rp-title { font-size: 10px; letter-spacing: .16em; font-weight: 700; color: #9ff6ff; flex: 1; white-space: nowrap; }
+        #risk-panel .rp-h { font-family: 'Orbitron', sans-serif; font-size: 13px; color: #ffd166; min-width: 44px; text-align: right; }
+        #risk-panel button { border: 1px solid rgba(94,242,255,.35); background: rgba(94,242,255,.08); color: #dffcff; border-radius: 10px; width: 32px; height: 30px; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; cursor: pointer; touch-action: manipulation; }
+        #risk-panel button:hover, #risk-panel button.on { background: rgba(94,242,255,.24); border-color: #5ef2ff; }
+        #risk-panel input[type=range] { width: 100%; margin-top: 9px; accent-color: #f6b93b; height: 22px; touch-action: none; }
+        #risk-panel .rp-ticks { display: flex; justify-content: space-between; font-size: 9px; color: #7fa3b8; margin-top: 1px; }
+        #risk-card { position: fixed; top: 108px; right: 16px; z-index: 24; width: 300px; max-height: calc(100vh - 200px); overflow-y: auto; padding: 14px; border-radius: 16px; color: #e2f4ff; }
+        #risk-card .rc-eyebrow { font-size: 9.5px; letter-spacing: .18em; color: #ffd166; font-weight: 700; }
+        #risk-card h3 { font-size: 16px; font-weight: 800; color: #fff; margin: 4px 0 2px; }
+        #risk-card .rc-sub { font-size: 11px; color: #9fb3c8; }
+        #risk-card .rc-score { display: flex; align-items: baseline; gap: 6px; margin-top: 12px; }
+        #risk-card .rc-score b { font-family: 'Orbitron', sans-serif; font-size: 30px; }
+        #risk-card .rc-score small { font-size: 11px; color: #9fb3c8; }
+        #risk-card .rc-bar { height: 6px; border-radius: 9px; background: rgba(255,255,255,.08); overflow: hidden; margin: 6px 0 4px; }
+        #risk-card .rc-bar i { display: block; height: 100%; border-radius: 9px; transition: width .35s; }
+        #risk-card .rc-tone { font-size: 11px; font-weight: 700; }
+        #risk-card ul { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+        #risk-card li { font-size: 11.5px; background: rgba(255,255,255,.04); border: 1px solid rgba(148,197,255,.12); border-radius: 10px; padding: 7px 9px; }
+        #risk-card li em { font-style: normal; font-size: 10px; font-weight: 700; margin-left: 4px; }
+        #risk-card .rc-empty { font-size: 11.5px; color: #8fb3c4; margin-top: 10px; }
+        #risk-card .rc-actions { display: grid; gap: 7px; margin-top: 12px; }
+        #risk-card .rc-actions button { padding: 9px 10px; border-radius: 11px; font-size: 12px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
+        #risk-card .rc-act { background: linear-gradient(135deg, #f6c453, #d99a26); color: #1d1405; border: 0; }
+        #risk-card .rc-act.undo { background: rgba(94,242,255,.16); color: #dffcff; border: 1px solid #5ef2ff; }
+        #risk-card .rc-open { background: transparent; color: #cfe9ff; border: 1px solid rgba(148,197,255,.3); }
+        #risk-card .rc-close { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 8px; color: #9fb3c8; background: transparent; border: 0; font-size: 16px; cursor: pointer; }
+        #touch-hint { position: fixed; inset: 0; z-index: 40; display: none; align-items: center; justify-content: center; pointer-events: none; background: rgba(2,8,20,.35); }
+        #touch-hint span { padding: 10px 16px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #effeff; letter-spacing: .04em; }
+        body.touch-locked #touch-hint { display: flex; }
+        @media (max-width: 640px) {
+          body.embedded #hud-title { display: none; }
+          body.embedded #selection-card { top: auto; bottom: 150px; left: 12px; right: 12px; width: auto; }
+          #risk-panel { top: auto; bottom: 74px; left: 12px; right: 12px; width: auto; padding: 8px 10px; }
+          #risk-card { top: auto; bottom: 150px; left: 12px; right: 12px; width: auto; max-height: 46vh; }
+        }
+      `;
+      document.head.appendChild(css);
+
+      const panel = document.createElement('div');
+      panel.id = 'risk-panel';
+      panel.className = 'glass-hud';
+      panel.innerHTML = `
+        <div class="rp-top">
+          <span class="live-dot"></span>
+          <span class="rp-title">RISCO PROJETADO</span>
+          <span class="rp-h" id="rp-h">Agora</span>
+          <button id="rp-play" title="Reproduzir projeção 0 → 24h">▶</button>
+          <button id="rp-layer" class="on" title="Mostrar/ocultar faróis de risco">◉</button>
+          <button id="rp-full" title="Tela cheia">⛶</button>
+        </div>
+        <input id="rp-range" type="range" min="0" max="24" step="1" value="0" aria-label="Horizonte da projeção em horas" />
+        <div class="rp-ticks"><span>Agora</span><span>+6h</span><span>+12h</span><span>+18h</span><span>+24h</span></div>`;
+      document.body.appendChild(panel);
+      if (!EMBED) panel.style.display = 'none';
+
+      const card = document.createElement('div');
+      card.id = 'risk-card';
+      card.className = 'glass-hud card-animate';
+      card.style.display = 'none';
+      document.body.appendChild(card);
+
+      const hint = document.createElement('div');
+      hint.id = 'touch-hint';
+      hint.innerHTML = '<span class="glass-hud">👆 Toque para interagir com o 3D</span>';
+      document.body.appendChild(hint);
+
+      const rpRange = panel.querySelector('#rp-range');
+      const rpH = panel.querySelector('#rp-h');
+      const rpPlay = panel.querySelector('#rp-play');
+      const rpLayer = panel.querySelector('#rp-layer');
+      const rpFull = panel.querySelector('#rp-full');
+      rpRange.addEventListener('input', () => { rpH.textContent = +rpRange.value ? '+' + rpRange.value + 'h' : 'Agora'; send({ type: 'horizon', h: +rpRange.value }); });
+      rpPlay.addEventListener('click', () => send({ type: 'play' }));
+      rpFull.addEventListener('click', () => send({ type: 'full' }));
+      rpLayer.addEventListener('click', () => {
+        layerOn = !layerOn;
+        rpLayer.classList.toggle('on', layerOn);
+        Object.keys(beacons).forEach((id) => { beacons[id].root.visible = layerOn; });
+        if (!layerOn) hideCard();
+      });
+
+      // ---------- Faróis 3D ----------
+      function findMesh(key) {
+        const k = key.toUpperCase();
+        return interactiveMeshes.find((m) => !m.userData.isPin && m.userData.name && m.userData.name.toUpperCase().includes(k));
+      }
+      function floorGroupOf(o) {
+        let p = o;
+        while (p) { if (p === floor1Group || p === floor2Group) return p; p = p.parent; }
+        return floor1Group;
+      }
+      function anchorFor(a) {
+        const def = ANCHORS[String(a.name || '').trim().toLowerCase()];
+        if (!def) return null;
+        if (def.mesh) {
+          const m = findMesh(def.mesh);
+          if (!m) return null;
+          scene.updateMatrixWorld(true);
+          const group = floorGroupOf(m);
+          const wp = new THREE.Vector3();
+          m.getWorldPosition(wp);
+          const lp = group.worldToLocal(wp);
+          const h = (m.userData.storeDims && m.userData.storeDims.h) || 1.6;
+          lp.y += h / 2 + 0.25;
+          return { group, pos: lp };
+        }
+        const group = def.floor === 2 ? floor2Group : floor1Group;
+        return { group, pos: new THREE.Vector3(def.x, 0.45, def.z) };
+      }
+
+      function drawBadge(b) {
+        const a = b.data, tone = toneOf(a), col = TONE_CSS[tone], sel = selectedId === a.id;
+        const c = b.canvas, ctx = c.getContext('2d');
+        ctx.clearRect(0, 0, c.width, c.height);
+        ctx.save();
+        roundRect(ctx, 6, 6, c.width - 12, c.height - 12, 46);
+        ctx.fillStyle = sel ? 'rgba(10,26,48,0.96)' : 'rgba(4,12,26,0.88)';
+        ctx.fill();
+        ctx.lineWidth = sel ? 9 : 5;
+        ctx.strokeStyle = sel ? '#ffffff' : col;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(58, c.height / 2, 38, 0, Math.PI * 2);
+        ctx.fillStyle = col;
+        ctx.fill();
+        ctx.fillStyle = '#04121f';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = '800 34px Orbitron, Inter, sans-serif';
+        ctx.fillText(a.mit ? '✓' : String(a.risk), 58, c.height / 2 + 2);
+        ctx.textAlign = 'left';
+        let name = String(a.name);
+        ctx.font = '700 27px Inter, sans-serif';
+        while (ctx.measureText(name).width > c.width - 128 && name.length > 4) name = name.slice(0, -2);
+        if (name !== String(a.name)) name = name.replace(/\s+$/, '') + '…';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(name, 108, 50);
+        ctx.font = '700 20px Inter, sans-serif';
+        ctx.fillStyle = col;
+        ctx.fillText(a.mit ? 'AÇÃO SIMULADA' : ('RISCO ' + (state.horizon ? '+' + Math.round(state.horizon) + 'H' : 'AGORA')) + ' · ' + a.n + ' PEND.', 108, 92);
+        ctx.restore();
+        b.tex.needsUpdate = true;
+      }
+
+      function makeBeacon(a) {
+        const anchor = anchorFor(a);
+        if (!anchor) return null;
+        const root = new THREE.Group();
+        root.position.copy(anchor.pos);
+        const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false });
+        const column = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1, 12, 1, true), mat);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+        const ring = new THREE.Mesh(new THREE.RingGeometry(0.7, 1.05, 40), ringMat);
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.y = 0.06;
+        const canvas = document.createElement('canvas');
+        canvas.width = 420; canvas.height = 132;
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.encoding = THREE.sRGBEncoding;
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false }));
+        sprite.center.set(0.5, 0);
+        sprite.renderOrder = 40;
+        sprite.userData = { riskAreaId: a.id };
+        root.add(column, ring, sprite);
+        root.visible = layerOn;
+        anchor.group.add(root);
+        return { root, column, ring, sprite, canvas, tex, mat, ringMat, group: anchor.group, data: a, h: 3 };
+      }
+
+      function applyBeacon(b, a) {
+        b.data = a;
+        const hex = TONE_HEX[toneOf(a)];
+        b.mat.color.setHex(hex);
+        b.ringMat.color.setHex(hex);
+        b.h = 2.2 + (a.mit ? 0.6 : (a.risk / 100) * 6.5);
+        drawBadge(b);
+      }
+
+      function update(next) {
+        state = Object.assign(state, next);
+        const seen = {};
+        (state.areas || []).forEach((a) => {
+          seen[a.id] = true;
+          let b = beacons[a.id];
+          if (!b) { b = makeBeacon(a); if (!b) return; beacons[a.id] = b; }
+          applyBeacon(b, a);
+        });
+        Object.keys(beacons).forEach((id) => {
+          if (!seen[id]) { const b = beacons[id]; b.group.remove(b.root); delete beacons[id]; }
+        });
+        if (document.activeElement !== rpRange) rpRange.value = Math.round(state.horizon);
+        rpH.textContent = state.horizon ? '+' + Math.round(state.horizon) + 'h' : 'Agora';
+        rpPlay.textContent = state.playing ? '❚❚' : '▶';
+        rpPlay.classList.toggle('on', !!state.playing);
+        rpFull.textContent = state.full ? '✕' : '⛶';
+        rpFull.title = state.full ? 'Sair da tela cheia' : 'Tela cheia';
+        if (selectedId) { if (beacons[selectedId]) renderCard(); else hideCard(); }
+      }
+
+      // ---------- Cartão de risco ----------
+      function renderCard() {
+        const b = beacons[selectedId];
+        if (!b) return;
+        const a = b.data, tone = toneOf(a), col = TONE_CSS[tone];
+        const hz = state.horizon ? '+' + Math.round(state.horizon) + 'H' : 'AGORA';
+        card.innerHTML = `
+          <button class="rc-close" data-rc="close" aria-label="Fechar">✕</button>
+          <div class="rc-eyebrow">MODO FUTURO · CENÁRIO ${hz}</div>
+          <h3>${esc(a.name)}</h3>
+          <div class="rc-sub">${esc(a.floorName)} · Saúde atual ${a.health}/100</div>
+          <div class="rc-score"><b style="color:${col}">${a.risk}</b><small>/100 risco projetado${a.mit ? ' (com ação simulada)' : ''}</small></div>
+          <div class="rc-bar"><i style="width:${Math.max(3, a.risk)}%;background:${col}"></i></div>
+          <div class="rc-tone" style="color:${col}">● ${TONE_TXT[tone]}${a.mit ? ` · sem a ação seria ${a.raw}/100` : ''}</div>
+          ${a.issues && a.issues.length
+            ? `<ul>${a.issues.map((o) => `<li>${esc(o.t)}<em style="color:${o.p === 'Crítica' || o.p === 'Alta' ? '#fb7185' : '#fbbf24'}">${esc(o.p)}</em></li>`).join('')}</ul>`
+            : '<div class="rc-empty">Nenhuma pendência aberta neste setor.</div>'}
+          <div class="rc-actions">
+            ${a.n ? `<button class="rc-act ${a.mit ? 'undo' : ''}" data-rc="mit">${a.mit ? '↺ Desfazer ação simulada' : '⚡ Simular envio da equipe'}</button>` : ''}
+            <button class="rc-open" data-rc="open">Abrir ocorrências da área →</button>
+          </div>`;
+        card.style.display = 'block';
+      }
+      function hideCard() {
+        card.style.display = 'none';
+        const prev = selectedId;
+        selectedId = '';
+        if (prev && beacons[prev]) drawBadge(beacons[prev]);
+      }
+      card.addEventListener('click', (e) => {
+        const t = e.target.closest('[data-rc]');
+        if (!t) return;
+        const b = beacons[selectedId];
+        if (t.dataset.rc === 'close') { hideCard(); send({ type: 'focus', id: '' }); }
+        if (t.dataset.rc === 'mit' && b) send({ type: 'mitigate', id: b.data.id, on: !b.data.mit });
+        if (t.dataset.rc === 'open' && b) send({ type: 'open', id: b.data.id });
+      });
+
+      function selectArea(id, fly, fromUser) {
+        const b = beacons[id];
+        if (!b) { hideCard(); return; }
+        const prev = selectedId;
+        selectedId = id;
+        if (prev && prev !== id && beacons[prev]) drawBadge(beacons[prev]);
+        drawBadge(b);
+        if (selectedObj) { clearHighlight(selectedObj); selectedObj = null; }
+        selectionCard.classList.add('hidden');
+        if (!layerOn) { layerOn = true; rpLayer.classList.add('on'); Object.keys(beacons).forEach((k) => { beacons[k].root.visible = true; }); }
+        if (!b.group.visible) b.group.visible = true;
+        renderCard();
+        if (fly) {
+          const wp = new THREE.Vector3();
+          b.root.getWorldPosition(wp);
+          animateCameraTo(new THREE.Vector3(wp.x - 4, wp.y + 24, wp.z + 30), wp);
+        }
+        if (fromUser) send({ type: 'focus', id });
+      }
+
+      // Cartão da loja e cartão de risco não ficam abertos juntos
+      new MutationObserver(() => {
+        if (!selectionCard.classList.contains('hidden') && card.style.display !== 'none') hideCard();
+      }).observe(selectionCard, { attributes: true, attributeFilter: ['class'] });
+
+      // ---------- Clique / toque nos faróis ----------
+      const rc = new THREE.Raycaster();
+      const pt = new THREE.Vector2();
+      let downAt = { x: 0, y: 0 };
+      function hitBeacon(e) {
+        if (!layerOn) return null;
+        const r = renderer.domElement.getBoundingClientRect();
+        pt.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+        pt.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+        rc.setFromCamera(pt, camera);
+        const list = Object.keys(beacons).map((k) => beacons[k]).filter((b) => b.root.visible && b.group.visible).map((b) => b.sprite);
+        const hit = rc.intersectObjects(list, false)[0];
+        return hit ? hit.object.userData.riskAreaId : null;
+      }
+      renderer.domElement.addEventListener('pointerdown', (e) => { downAt = { x: e.clientX, y: e.clientY }; }, true);
+      renderer.domElement.addEventListener('pointerup', (e) => {
+        if (Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 8) return;
+        const id = hitBeacon(e);
+        if (id) { e.stopImmediatePropagation(); selectArea(id, false, true); }
+      }, true);
+      renderer.domElement.addEventListener('pointermove', (e) => {
+        if (e.pointerType !== 'mouse') return;
+        const id = hitBeacon(e);
+        if (!id) return;
+        e.stopImmediatePropagation();
+        document.body.style.cursor = 'pointer';
+        hoverPill.textContent = beacons[id].data.name + ' · risco ' + beacons[id].data.risk + '/100';
+        hoverPill.style.left = `${Math.min(window.innerWidth - 220, e.clientX + 14)}px`;
+        hoverPill.style.top = `${Math.max(12, e.clientY - 28)}px`;
+        hoverPill.classList.remove('hidden');
+      }, true);
+
+      // ---------- Animação dos faróis ----------
+      const clk = new THREE.Clock();
+      (function pulse() {
+        requestAnimationFrame(pulse);
+        const t = clk.getElapsedTime();
+        const dist = camera.position.distanceTo(controls.target);
+        const s = THREE.MathUtils.clamp(dist / 70, 0.75, 2.1);
+        Object.keys(beacons).forEach((id, i) => {
+          const b = beacons[id], tone = toneOf(b.data), sel = id === selectedId;
+          const speed = tone === 'bad' ? 4.2 : tone === 'warn' ? 2.4 : 1.4;
+          const p = 0.5 + 0.5 * Math.sin(t * speed + i);
+          b.column.scale.y = b.h;
+          b.column.position.y = b.h / 2;
+          b.mat.opacity = (tone === 'good' ? 0.28 : 0.42) + 0.25 * p;
+          const rs = 1 + (tone === 'bad' ? 0.9 : tone === 'warn' ? 0.5 : 0.25) * p + (sel ? 0.4 : 0);
+          b.ring.scale.set(rs, rs, rs);
+          b.ringMat.opacity = 0.85 - 0.55 * p;
+          const w = 4.6 * s * (sel ? 1.18 : 1);
+          b.sprite.scale.set(w, w * (132 / 420), 1);
+          b.sprite.position.y = b.h + 0.15 + (sel ? 0.25 * Math.sin(t * 3) : 0);
+        });
+      })();
+
+      // ---------- Mensagens do sistema ----------
+      window.addEventListener('message', (e) => {
+        const m = e.data;
+        if (!m || m.source !== 'cdapp') return;
+        if (m.type === 'data') {
+          update(m);
+          if (m.focus && m.focus !== selectedId) selectArea(m.focus, !!m.fly, false);
+          else if (!m.focus && selectedId) hideCard();
+        }
+        if (m.type === 'touchlock') {
+          armedHint = !!m.on;
+          document.body.classList.toggle('touch-locked', armedHint);
+        }
+      });
+      send({ type: 'ready' });
+    })(); } catch (err) { console.error('Camada de risco do Modo Futuro:', err); }
+
+  </script>
+</body>
+</html>
